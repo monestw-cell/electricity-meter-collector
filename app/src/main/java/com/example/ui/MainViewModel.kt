@@ -83,17 +83,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val activeSettings = repository.getSettingsSync()
 
             val previousReading = subscriber.currentReading
-            val consumption = if (subscriber.subscriptionType == "Meter") {
-                (reading - previousReading).coerceAtLeast(0)
-            } else {
-                0
-            }
-
-            val amount = if (subscriber.subscriptionType == "Meter") {
-                (consumption * activeSettings.pricePerKw) + activeSettings.fixedFee
-            } else {
-                (subscriber.amperage * activeSettings.pricePerAmp) + activeSettings.fixedFee
-            }
+            val consumption = (reading - previousReading).coerceAtLeast(0)
+            val amount = consumption * activeSettings.pricePerKw
 
             val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale("ar"))
             val currentDateStr = dateFormat.format(Date())
@@ -113,27 +104,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Insert Invoice
             repository.insertInvoice(invoice)
 
-            // Update Subscriber's current reading
+            // Update Subscriber's current reading and mark as read
             val updatedSub = subscriber.copy(
-                currentReading = if (subscriber.subscriptionType == "Meter") reading else previousReading
+                currentReading = reading,
+                isRead = true
             )
             repository.updateSubscriber(updatedSub)
         }
     }
 
+    fun resetAllReadingsStatus() {
+        viewModelScope.launch {
+            val list = repository.allSubscribers.first()
+            list.forEach { subscriber ->
+                repository.updateSubscriber(subscriber.copy(isRead = false))
+            }
+        }
+    }
+
+    fun toggleReadStatus(subscriber: Subscriber) {
+        viewModelScope.launch {
+            repository.updateSubscriber(subscriber.copy(isRead = !subscriber.isRead))
+        }
+    }
+
     fun updateSettings(
         pricePerKw: Double,
-        pricePerAmp: Double,
-        fixedFee: Double,
-        pin: String
+        currency: String,
+        appLockEnabled: Boolean,
+        appLockType: String,
+        appLockSecret: String
     ) {
         viewModelScope.launch {
             val current = repository.getSettingsSync()
             val updated = current.copy(
                 pricePerKw = pricePerKw,
-                pricePerAmp = pricePerAmp,
-                fixedFee = fixedFee,
-                pinCode = pin
+                currency = currency,
+                appLockEnabled = appLockEnabled,
+                appLockType = appLockType,
+                appLockSecret = appLockSecret
             )
             repository.updateSettings(updated)
         }

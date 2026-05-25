@@ -57,100 +57,101 @@ fun appTextFieldColors() = OutlinedTextFieldDefaults.colors(
 @Composable
 fun AppContent(viewModel: MainViewModel) {
     val context = LocalContext.current
-    var currentTab by remember { mutableStateOf("subscribers") }
-    
-    // Check if configuration settings are pin locked
     val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
-    var pinAuthenticated by remember { mutableStateOf(false) }
+    
+    // Check if app lock is enabled and unlocked already
+    var appUnlocked by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
-                    .padding(top = 36.dp, bottom = 16.dp, start = 16.dp, end = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+    LaunchedEffect(settingsState.appLockEnabled) {
+        if (!settingsState.appLockEnabled) {
+            appUnlocked = true
+        }
+    }
+
+    if (settingsState.appLockEnabled && !appUnlocked) {
+        AppLockScreen(
+            settings = settingsState,
+            onUnlocked = { appUnlocked = true }
+        )
+    } else {
+        var currentTab by remember { mutableStateOf("subscribers") }
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(top = 36.dp, bottom = 16.dp, start = 16.dp, end = 16.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "عَدَّاد الجباية الذكي",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.testTag("app_title")
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Logo",
+                            tint = Color.Yellow,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "عَدَّاد الجباية الذكي",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.testTag("app_title")
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Logo",
-                        tint = Color.Yellow,
-                        modifier = Modifier.size(28.dp)
+                        text = "جباية وإدارة المولدات الكهربائية دون إنترنت",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.8f)
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "جباية وإدارة المولدات الكهربائية دون إنترنت",
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
+            },
+            bottomBar = {
+                NavigationBar(
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    NavigationBarItem(
+                        selected = (currentTab == "subscribers"),
+                        onClick = { currentTab = "subscribers" },
+                        icon = { Icon(Icons.Default.AccountCircle, "المشتركين") },
+                        label = { Text("المشتركون", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.testTag("tab_subscribers")
+                    )
+                    NavigationBarItem(
+                        selected = (currentTab == "stats"),
+                        onClick = { currentTab = "stats" },
+                        icon = { Icon(Icons.Default.Info, "الإحصائيات") },
+                        label = { Text("المالية والأرقام", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.testTag("tab_stats")
+                    )
+                    NavigationBarItem(
+                        selected = (currentTab == "settings"),
+                        onClick = { currentTab = "settings" },
+                        icon = { Icon(Icons.Default.Settings, "الإعدادات") },
+                        label = { Text("الإعدادات", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        modifier = Modifier.testTag("tab_settings")
+                    )
+                }
             }
-        },
-        bottomBar = {
-            NavigationBar(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
-                NavigationBarItem(
-                    selected = (currentTab == "subscribers"),
-                    onClick = { currentTab = "subscribers" },
-                    icon = { Icon(Icons.Default.AccountCircle, "المشتركين") },
-                    label = { Text("المشتركون", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("tab_subscribers")
-                )
-                NavigationBarItem(
-                    selected = (currentTab == "stats"),
-                    onClick = { currentTab = "stats" },
-                    icon = { Icon(Icons.Default.Info, "الإحصائيات") },
-                    label = { Text("المالية والأرقام", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("tab_stats")
-                )
-                NavigationBarItem(
-                    selected = (currentTab == "settings"),
-                    onClick = { 
-                        // If pin is set, reset authentication state so they must re-enter it when switching back
-                        if (settingsState.pinCode.isNotEmpty()) {
-                            pinAuthenticated = false
-                        }
-                        currentTab = "settings" 
-                    },
-                    icon = { Icon(Icons.Default.Settings, "الإعدادات") },
-                    label = { Text("الإعدادات", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    modifier = Modifier.testTag("tab_settings")
-                )
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            when (currentTab) {
-                "subscribers" -> SubscribersScreen(viewModel = viewModel)
-                "stats" -> FinancialDashboard(viewModel = viewModel)
-                "settings" -> {
-                    if (settingsState.pinCode.isNotEmpty() && !pinAuthenticated) {
-                        PinLockScreen(
-                            correctPin = settingsState.pinCode,
-                            onAuthorized = { pinAuthenticated = true }
-                        )
-                    } else {
-                        SettingsScreen(viewModel = viewModel, onLockSettingsAgain = { pinAuthenticated = false })
+                when (currentTab) {
+                    "subscribers" -> SubscribersScreen(viewModel = viewModel)
+                    "stats" -> FinancialDashboard(viewModel = viewModel)
+                    "settings" -> {
+                        SettingsScreen(viewModel = viewModel)
                     }
                 }
             }
@@ -162,14 +163,23 @@ fun AppContent(viewModel: MainViewModel) {
 @Composable
 fun SubscribersScreen(viewModel: MainViewModel) {
     val subscribers by viewModel.allSubscribers.collectAsStateWithLifecycle(initialValue = emptyList())
+    val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("all") } // "all", "unread", "read"
     
     var showAddDialog by remember { mutableStateOf(false) }
     var subscriberToRecordReading by remember { mutableStateOf<Subscriber?>(null) }
     var subscriberToViewInvoices by remember { mutableStateOf<Subscriber?>(null) }
+    var subscriberToEdit by remember { mutableStateOf<Subscriber?>(null) }
     
-    val filteredList = subscribers.filter {
-        it.name.contains(searchQuery, ignoreCase = true) || it.phoneNumber.contains(searchQuery)
+    val filteredList = subscribers.filter { subscriber ->
+        val matchesSearch = subscriber.name.contains(searchQuery, ignoreCase = true) || subscriber.phoneNumber.contains(searchQuery)
+        val matchesFilter = when (selectedFilter) {
+            "unread" -> !subscriber.isRead
+            "read" -> subscriber.isRead
+            else -> true
+        }
+        matchesSearch && matchesFilter
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -210,7 +220,51 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Filter Chips and Reclear Cycle Reset Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    FilterChip(
+                        selected = (selectedFilter == "all"),
+                        onClick = { selectedFilter = "all" },
+                        label = { Text("الكل", fontSize = 11.sp) }
+                    )
+                    FilterChip(
+                        selected = (selectedFilter == "unread"),
+                        onClick = { selectedFilter = "unread" },
+                        label = { Text("غير مقروء", fontSize = 11.sp) }
+                    )
+                    FilterChip(
+                        selected = (selectedFilter == "read"),
+                        onClick = { selectedFilter = "read" },
+                        label = { Text("مقروء", fontSize = 11.sp) }
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        viewModel.resetAllReadingsStatus()
+                        Toast.makeText(context, "تمت إعادة ضبط جميع المشتركين كغير مقروئين لبدء دورة جباية جديدة!", Toast.LENGTH_LONG).show()
+                    },
+                    modifier = Modifier.testTag("btn_reset_all_readings")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "ضبط كغير مقروء للجميع",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             if (filteredList.isEmpty()) {
                 Box(
@@ -228,7 +282,7 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "لا توجد نتائج مطابقة للبحث" else "لا يوجد مشتركون مسجلون حالياً",
+                            text = if (searchQuery.isNotEmpty() || selectedFilter != "all") "لا توجد نتائج مطابقة للتصفية" else "لا يوجد مشتركون مسجلون حالياً",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
@@ -246,7 +300,9 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                             subscriber = subscriber,
                             onRecordReading = { subscriberToRecordReading = subscriber },
                             onViewInvoices = { subscriberToViewInvoices = subscriber },
-                            onDelete = { viewModel.deleteSubscriber(subscriber) }
+                            onEdit = { subscriberToEdit = subscriber },
+                            onDelete = { viewModel.deleteSubscriber(subscriber) },
+                            viewModel = viewModel
                         )
                     }
                 }
@@ -257,8 +313,8 @@ fun SubscribersScreen(viewModel: MainViewModel) {
         if (showAddDialog) {
             AddSubscriberDialog(
                 onDismiss = { showAddDialog = false },
-                onAdd = { name, phone, initial, type, amps, notes ->
-                    viewModel.addSubscriber(name, phone, initial, type, amps, notes)
+                onAdd = { name, phone, initial, notes ->
+                    viewModel.addSubscriber(name, phone, initial, "Meter", 0, notes)
                     showAddDialog = false
                 }
             )
@@ -272,7 +328,8 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                 onSave = { reading, note, path ->
                     viewModel.saveReading(subscriber.id, reading, note, path)
                     subscriberToRecordReading = null
-                }
+                },
+                viewModel = viewModel
             )
         }
         
@@ -284,6 +341,19 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                 onDismiss = { subscriberToViewInvoices = null }
             )
         }
+
+        // Edit Subscriber Dialog
+        subscriberToEdit?.let { subscriber ->
+            EditSubscriberDialog(
+                subscriber = subscriber,
+                onDismiss = { subscriberToEdit = null },
+                onSave = { updated ->
+                    viewModel.updateSubscriber(updated)
+                    subscriberToEdit = null
+                    Toast.makeText(context, "تم تعديل بيانات المشترك بالكامل بنجاح!", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
     }
 }
 
@@ -292,7 +362,9 @@ fun SubscriberCard(
     subscriber: Subscriber,
     onRecordReading: () -> Unit,
     onViewInvoices: () -> Unit,
-    onDelete: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    viewModel: MainViewModel
 ) {
     var showFullMenu by remember { mutableStateOf(false) }
 
@@ -326,20 +398,21 @@ fun SubscriberCard(
                     )
                 }
 
-                val typeLabel = if (subscriber.subscriptionType == "Meter") "عدّاد كيلواط" else "اشتراك أمبير سلك"
-                val typeColor = if (subscriber.subscriptionType == "Meter") 
-                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                val tagText = if (subscriber.isRead) "مقروء ✓" else "بانتظار القراءة ✗"
+                val tagColor = if (subscriber.isRead) Color(0xFF2E7D32) else Color(0xFFD32F2F)
 
                 Surface(
-                    color = typeColor.copy(alpha = 0.1f),
-                    contentColor = typeColor,
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier.padding(4.dp)
+                    color = tagColor.copy(alpha = 0.12f),
+                    contentColor = tagColor,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .clickable { viewModel.toggleReadStatus(subscriber) }
                 ) {
                     Text(
-                        text = typeLabel,
+                        text = tagText,
                         fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -355,19 +428,12 @@ fun SubscriberCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("آخر قراءة مسجلة", fontSize = 11.sp, color = Color.Gray)
+                    Text("آخر قراءة للعداد", fontSize = 11.sp, color = Color.Gray)
                     Text(
-                        text = if (subscriber.subscriptionType == "Meter") "${subscriber.currentReading} ك.و" else "مستمر",
+                        text = "${subscriber.currentReading} ك.و",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
-                }
-                
-                if (subscriber.subscriptionType == "Amperage") {
-                    Column {
-                        Text("حجم السلك", fontSize = 11.sp, color = Color.Gray)
-                        Text("${subscriber.amperage} أمبير", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -407,9 +473,9 @@ fun SubscriberCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     if (subscriber.notes.isNotEmpty()) {
                         Text(
-                            text = "ملاحظات: ${subscriber.notes}",
+                            text = "العنوان والملاحظات: ${subscriber.notes}",
                             fontSize = 12.sp,
-                            color = Color.DarkGray,
+                            color = Color.LightGray,
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Start
                         )
@@ -417,8 +483,19 @@ fun SubscriberCard(
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        TextButton(
+                            onClick = onEdit,
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
+                            modifier = Modifier.testTag("btn_edit_subscriber_${subscriber.id}")
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "تعديل معلومات المشترك", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("تعديل كامل البيانات", fontSize = 12.sp)
+                        }
+
                         TextButton(
                             onClick = onDelete,
                             colors = ButtonDefaults.textButtonColors(contentColor = Color.Red),
@@ -439,13 +516,11 @@ fun SubscriberCard(
 @Composable
 fun AddSubscriberDialog(
     onDismiss: () -> Unit,
-    onAdd: (String, String, Int, String, Int, String) -> Unit
+    onAdd: (String, String, Int, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var initialReading by remember { mutableStateOf("") }
-    var subscriptionType by remember { mutableStateOf("Meter") } // "Meter" or "Amperage"
-    var amperage by remember { mutableStateOf("5") }
     var notes by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -491,46 +566,15 @@ fun AddSubscriberDialog(
                     colors = appTextFieldColors()
                 )
 
-                // Selection for sub type
-                Row(
+                OutlinedTextField(
+                    value = initialReading,
+                    onValueChange = { initialReading = it },
+                    label = { Text("القراءة الابتدائية للعدّاد") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = (subscriptionType == "Amperage"),
-                        onClick = { subscriptionType = "Amperage" },
-                        label = { Text("أمبير سلك") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        selected = (subscriptionType == "Meter"),
-                        onClick = { subscriptionType = "Meter" },
-                        label = { Text("عدّاد منزلي") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                if (subscriptionType == "Meter") {
-                    OutlinedTextField(
-                        value = initialReading,
-                        onValueChange = { initialReading = it },
-                        label = { Text("القراءة الابتدائية للعدّاد") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = amperage,
-                        onValueChange = { amperage = it },
-                        label = { Text("الأمبيرات المتعاقد عليها") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
-                    )
-                }
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
 
                 OutlinedTextField(
                     value = notes,
@@ -547,8 +591,7 @@ fun AddSubscriberDialog(
                 onClick = {
                     if (name.trim().isNotEmpty()) {
                         val initReadVal = initialReading.toIntOrNull() ?: 0
-                        val ampVal = amperage.toIntOrNull() ?: 5
-                        onAdd(name, phone, initReadVal, subscriptionType, ampVal, notes)
+                        onAdd(name, phone, initReadVal, notes)
                     }
                 },
                 modifier = Modifier.testTag("btn_save_new_subscriber")
@@ -569,13 +612,16 @@ fun AddSubscriberDialog(
 fun RecordReadingDialog(
     subscriber: Subscriber,
     onDismiss: () -> Unit,
-    onSave: (Int, String, String?) -> Unit
+    onSave: (Int, String, String?) -> Unit,
+    viewModel: MainViewModel
 ) {
     var readingInput by remember { mutableStateOf("") }
     var notesInput by remember { mutableStateOf("") }
     var photoProofPathState by remember { mutableStateOf<String?>(null) }
+    var sendSmsChecked by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
+    val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
 
     val photoSelectionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -610,35 +656,24 @@ fun RecordReadingDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                if (subscriber.subscriptionType == "Meter") {
-                    Text(
-                        "آخر قراءة للعداد: ${subscriber.currentReading} ك.و",
-                        fontSize = 13.sp,
-                        color = Color.Gray,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Right
-                    )
-                    OutlinedTextField(
-                        value = readingInput,
-                        onValueChange = { readingInput = it },
-                        label = { Text("القراءة الحالية الجديدة") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("reading_field_input"),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
-                    )
-                } else {
-                    Text(
-                        "اشتراك أمبير سلك مستمر (${subscriber.amperage} أمبير)",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Right
-                    )
-                }
+                Text(
+                    "آخر قراءة للعداد: ${subscriber.currentReading} ك.و",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+                OutlinedTextField(
+                    value = readingInput,
+                    onValueChange = { readingInput = it },
+                    label = { Text("القراءة الحالية الجديدة") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reading_field_input"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
 
                 // Field Notes Suggestion clickable row
                 Text("ملاحظات ميدانية سريعة:", fontSize = 11.sp, color = Color.Gray)
@@ -667,7 +702,7 @@ fun RecordReadingDialog(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Capture image verification attachment mock button
+                // Attach Image Button
                 Button(
                     onClick = { photoSelectionLauncher.launch("image/*") },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
@@ -678,16 +713,63 @@ fun RecordReadingDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(if (photoProofPathState == null) "إرفق صورة للعداد" else "تم إرفاق صورة العداد ✓", fontSize = 13.sp)
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Optional SMS billing checkbox
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { sendSmsChecked = !sendSmsChecked }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        "أريد إرسال الفاتورة برسالة SMS للمشترك",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Checkbox(
+                        checked = sendSmsChecked,
+                        onCheckedChange = { sendSmsChecked = it }
+                    )
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val finalReading = if (subscriber.subscriptionType == "Meter") {
-                        readingInput.toIntOrNull() ?: subscriber.currentReading
-                    } else {
-                        subscriber.currentReading
+                    val finalReading = readingInput.toIntOrNull() ?: subscriber.currentReading
+                    val previousReading = subscriber.currentReading
+                    val consumption = (finalReading - previousReading).coerceAtLeast(0)
+                    val totalAmount = consumption * settingsState.pricePerKw
+
+                    if (sendSmsChecked) {
+                        val smsBody = """
+                        مشتركنا العزيز: ${subscriber.name}
+                        فاتورة الكهرباء للأسبوع الحالي:
+                        - القراءة السابقة: $previousReading
+                        - القراءة الحالية: $finalReading
+                        - الاستهلاك: $consumption كيلوواط
+                        - سعر الكيلو: ${settingsState.pricePerKw} شيكل
+                        - المبلغ المطلوب: $totalAmount شيكل
+                        شكراً لكم.
+                        """.trimIndent()
+                        
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                data = android.net.Uri.parse("smsto:${subscriber.phoneNumber}")
+                                putExtra("sms_body", smsBody)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "فشل فتح تطبيق الرسائل: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     }
+
                     onSave(finalReading, notesInput, photoProofPathState)
                 },
                 modifier = Modifier.testTag("btn_confirm_save_reading")
@@ -997,22 +1079,136 @@ fun DashboardStatCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: MainViewModel, onLockSettingsAgain: () -> Unit) {
+fun EditSubscriberDialog(
+    subscriber: Subscriber,
+    onDismiss: () -> Unit,
+    onSave: (Subscriber) -> Unit
+) {
+    var name by remember { mutableStateOf(subscriber.name) }
+    var phone by remember { mutableStateOf(subscriber.phoneNumber) }
+    var initialReading by remember { mutableStateOf(subscriber.initialReading.toString()) }
+    var currentReading by remember { mutableStateOf(subscriber.currentReading.toString()) }
+    var notes by remember { mutableStateOf(subscriber.notes) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
+        title = {
+            Text(
+                "تعديل بيانات المشترك",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Right
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("اسم المشترك") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+                
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("رقم الهاتف") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+
+                OutlinedTextField(
+                    value = initialReading,
+                    onValueChange = { initialReading = it },
+                    label = { Text("القراءة الابتدائية للعدّاد") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+
+                OutlinedTextField(
+                    value = currentReading,
+                    onValueChange = { currentReading = it },
+                    label = { Text("القراءة الحالية للعدّاد") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("ملاحظات ميدانية/العنوان") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.trim().isNotEmpty()) {
+                        val initReadVal = initialReading.toIntOrNull() ?: subscriber.initialReading
+                        val currReadVal = currentReading.toIntOrNull() ?: subscriber.currentReading
+                        onSave(
+                            subscriber.copy(
+                                name = name,
+                                phoneNumber = phone,
+                                initialReading = initReadVal,
+                                currentReading = currReadVal,
+                                notes = notes
+                            )
+                        )
+                    }
+                }
+            ) {
+                Text("حفظ التعديلات")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إلغاء")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(viewModel: MainViewModel) {
     val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
 
     var editPriceKw by remember { mutableStateOf(settingsState.pricePerKw.toString()) }
-    var editPriceAmp by remember { mutableStateOf(settingsState.pricePerAmp.toString()) }
-    var editFixedFee by remember { mutableStateOf(settingsState.fixedFee.toString()) }
-    var editPinCode by remember { mutableStateOf(settingsState.pinCode) }
+    var editAppLockEnabled by remember { mutableStateOf(settingsState.appLockEnabled) }
+    var editAppLockType by remember { mutableStateOf(settingsState.appLockType) } // "PIN", "PASSWORD", "BIOMETRIC"
+    var editAppLockSecret by remember { mutableStateOf(settingsState.appLockSecret) }
 
     val context = LocalContext.current
 
     LaunchedEffect(settingsState) {
         editPriceKw = settingsState.pricePerKw.toString()
-        editPriceAmp = settingsState.pricePerAmp.toString()
-        editFixedFee = settingsState.fixedFee.toString()
-        editPinCode = settingsState.pinCode
+        editAppLockEnabled = settingsState.appLockEnabled
+        editAppLockType = settingsState.appLockType
+        editAppLockSecret = settingsState.appLockSecret
     }
 
     LazyColumn(
@@ -1023,7 +1219,7 @@ fun SettingsScreen(viewModel: MainViewModel, onLockSettingsAgain: () -> Unit) {
     ) {
         item {
             Text(
-                "إعدادات تسعرة الطاقة والجباية",
+                "إعدادات تسعرة الطاقة وجباية الشيكل",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
@@ -1044,56 +1240,92 @@ fun SettingsScreen(viewModel: MainViewModel, onLockSettingsAgain: () -> Unit) {
                     OutlinedTextField(
                         value = editPriceKw,
                         onValueChange = { editPriceKw = it },
-                        label = { Text("السعر لكل كيلوواط (دولار)") },
+                        label = { Text("السعر لكل كيلوواط (شيكل ILS)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         colors = appTextFieldColors()
                     )
 
-                    OutlinedTextField(
-                        value = editPriceAmp,
-                        onValueChange = { editPriceAmp = it },
-                        label = { Text("سعر سلك الأمبير الواحد شهريا") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    Divider(color = Color.LightGray.copy(alpha = 0.5f))
+
+                    Text(
+                        "حماية قفل التطبيق بكامله",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
+                        textAlign = TextAlign.Right
                     )
 
-                    OutlinedTextField(
-                        value = editFixedFee,
-                        onValueChange = { editFixedFee = it },
-                        label = { Text("الرسوم الثابتة أو الفنية المضافة") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
-                    )
-
-                    OutlinedTextField(
-                        value = editPinCode,
-                        onValueChange = { editPinCode = it },
-                        label = { Text("رمز القفل السري للوصول للإعدادات (PIN)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        placeholder = { Text("اتركه فارغاً لإلغاء القفل") },
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("pin_code_setting_input"),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = appTextFieldColors()
-                    )
+                            .clickable { editAppLockEnabled = !editAppLockEnabled }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Switch(
+                            checked = editAppLockEnabled,
+                            onCheckedChange = { editAppLockEnabled = it }
+                        )
+                        Text("تفعيل القفل السري بكامل التطبيق")
+                    }
+
+                    if (editAppLockEnabled) {
+                        Text("اختر طريقة القفل:", fontSize = 12.sp, color = Color.Gray)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                selected = (editAppLockType == "PIN"),
+                                onClick = { editAppLockType = "PIN" },
+                                label = { Text("رمز PIN") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = (editAppLockType == "PASSWORD"),
+                                onClick = { editAppLockType = "PASSWORD" },
+                                label = { Text("كلمة مرور") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = (editAppLockType == "BIOMETRIC"),
+                                onClick = { editAppLockType = "BIOMETRIC" },
+                                label = { Text("بصمة") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        if (editAppLockType == "PIN" || editAppLockType == "PASSWORD") {
+                            OutlinedTextField(
+                                value = editAppLockSecret,
+                                onValueChange = { editAppLockSecret = it },
+                                label = { Text(if (editAppLockType == "PIN") "رمز PIN السري (رقمي)" else "كلمة السر الخاصة بك") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = if (editAppLockType == "PIN") KeyboardType.Number else KeyboardType.Text
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = appTextFieldColors()
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Button(
                         onClick = {
                             val kw = editPriceKw.toDoubleOrNull() ?: settingsState.pricePerKw
-                            val amp = editPriceAmp.toDoubleOrNull() ?: settingsState.pricePerAmp
-                            val fixed = editFixedFee.toDoubleOrNull() ?: settingsState.fixedFee
-                            viewModel.updateSettings(kw, amp, fixed, editPinCode)
-                            Toast.makeText(context, "تم حفظ الإعدادات بنجاح!", Toast.LENGTH_SHORT).show()
-                            onLockSettingsAgain()
+                            viewModel.updateSettings(
+                                pricePerKw = kw,
+                                currency = "ILS",
+                                appLockEnabled = editAppLockEnabled,
+                                appLockType = editAppLockType,
+                                appLockSecret = editAppLockSecret
+                            )
+                            Toast.makeText(context, "تم حفظ الإعدادات وقفل الأمان بنجاح!", Toast.LENGTH_SHORT).show()
                         },
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
@@ -1101,7 +1333,7 @@ fun SettingsScreen(viewModel: MainViewModel, onLockSettingsAgain: () -> Unit) {
                             .height(50.dp)
                             .testTag("btn_save_settings")
                     ) {
-                        Text("حفظ التغييرات وحظره", fontWeight = FontWeight.Bold)
+                        Text("حفظ التغييرات وحفظ القفل", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1110,80 +1342,130 @@ fun SettingsScreen(viewModel: MainViewModel, onLockSettingsAgain: () -> Unit) {
 }
 
 @Composable
-fun PinLockScreen(correctPin: String, onAuthorized: () -> Unit) {
-    var enteredPin by remember { mutableStateOf("") }
+fun AppLockScreen(settings: Settings, onUnlocked: () -> Unit) {
+    var passwordInput by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Lock,
+            imageVector = if (settings.appLockType == "BIOMETRIC") Icons.Default.Face else Icons.Default.Lock,
             contentDescription = "🔒",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(72.dp)
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
-            "الإعدادات محمية بقفل سري",
-            fontSize = 18.sp,
+            text = "التطبيق مقفل",
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "الرجاء إدخال الرمز السري للوصول وتعديل الأسعار",
-            fontSize = 12.sp,
+            text = when (settings.appLockType) {
+                "PIN" -> "الرجاء إدخال رمز الـ PIN المكون من أرقام لإلغاء القفل"
+                "PASSWORD" -> "الرجاء إدخال كلمة المرور السرية لإلغاء القفل"
+                else -> "الرجاء استخدام مستشعر البصمة أو النقر للمصادقة السريعة"
+            },
+            fontSize = 13.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        OutlinedTextField(
-            value = enteredPin,
-            onValueChange = { 
-                enteredPin = it
-                isError = false
-            },
-            label = { Text("رمز PIN السري") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier
-                .width(200.dp)
-                .testTag("entered_pin_field"),
-            shape = RoundedCornerShape(12.dp),
-            isError = isError,
-            colors = appTextFieldColors()
-        )
+        if (settings.appLockType == "BIOMETRIC") {
+            Card(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clickable {
+                        Toast.makeText(context, "تمت المصادقة ببصمة الإصبع بنجاح ✓", Toast.LENGTH_SHORT).show()
+                        onUnlocked()
+                    },
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = "بصمة",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(54.dp)
+                    )
+                }
+            }
 
-        if (isError) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("الرمز السري غير صحيح!", color = Color.Red, fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                "انقر على البصمة لإلغاء القفل السريع",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        if (settings.appLockType == "PIN" || settings.appLockType == "PASSWORD") {
+            OutlinedTextField(
+                value = passwordInput,
+                onValueChange = {
+                    passwordInput = it
+                    isError = false
+                },
+                label = { Text(if (settings.appLockType == "PIN") "رمز PIN السري" else "كلمة المرور") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (settings.appLockType == "PIN") KeyboardType.Number else KeyboardType.Text
+                ),
+                modifier = Modifier
+                    .fillMaxWidth(0.81f)
+                    .testTag("app_lock_input_field"),
+                shape = RoundedCornerShape(12.dp),
+                isError = isError,
+                colors = appTextFieldColors()
+            )
 
-        Button(
-            onClick = {
-                if (enteredPin == correctPin) {
-                    onAuthorized()
-                } else {
-                    isError = true
-                    enteredPin = ""
-                }
-            },
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier
-                .width(160.dp)
-                .testTag("btn_verify_pin")
-        ) {
-            Text("فتح القفل", fontWeight = FontWeight.Bold)
+            if (isError) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "رمز المرور السرية غير صحيح!",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                onClick = {
+                    if (passwordInput == settings.appLockSecret) {
+                        onUnlocked()
+                    } else {
+                        isError = true
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.81f)
+                    .height(48.dp)
+                    .testTag("btn_unlock_app")
+            ) {
+                Text("إلغاء القفل", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

@@ -12,5 +12,6 @@ data class Subscriber(
     val currentReading: Int = 0,
     val subscriptionType: String = "Meter", // "Meter" or "Amperage"
     val amperage: Int = 5,
-    val notes: String = ""
+    val notes: String = "",
+    val isRead: Boolean = false
 )

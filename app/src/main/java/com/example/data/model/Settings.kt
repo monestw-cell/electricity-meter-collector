@@ -7,8 +7,11 @@ import androidx.room.PrimaryKey
 data class Settings(
     @PrimaryKey val id: Int = 1,
     val pricePerKw: Double = 0.5, // e.g., standard price per unit
-    val pricePerAmp: Double = 15.0, // flat price per Ampere per month
-    val fixedFee: Double = 5.0, // service maintenance charge
-    val currency: String = "USD",
-    val pinCode: String = "" // PIN Lock code, defaults to empty (no PIN)
+    val pricePerAmp: Double = 0.0, // flat price per Ampere per month
+    val fixedFee: Double = 0.0, // service maintenance charge
+    val currency: String = "ILS",
+    val pinCode: String = "", // legacy
+    val appLockEnabled: Boolean = false,
+    val appLockType: String = "PIN", // "PIN" or "PASSWORD" or "BIOMETRIC"
+    val appLockSecret: String = ""
 )
