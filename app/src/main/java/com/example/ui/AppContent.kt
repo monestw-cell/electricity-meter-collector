@@ -173,10 +173,18 @@ fun SubscribersScreen(viewModel: MainViewModel) {
     var subscriberToRecord by remember { mutableStateOf<Subscriber?>(null) }
     var subscriberHistoryToView by remember { mutableStateOf<Subscriber?>(null) }
 
-    val filteredSubscribers = remember(subscribers, searchText) {
+    var filterType by remember { mutableStateOf("all") } // "all", "read", "unread"
+
+    val filteredSubscribers = remember(subscribers, searchText, filterType) {
         subscribers.filter {
-            it.name.contains(searchText, ignoreCase = true) || 
-            it.phoneNumber.contains(searchText, ignoreCase = true)
+            val matchesSearch = it.name.contains(searchText, ignoreCase = true) || 
+                               it.phoneNumber.contains(searchText, ignoreCase = true)
+            val matchesFilter = when (filterType) {
+                "read" -> it.isRead
+                "unread" -> !it.isRead
+                else -> true
+            }
+            matchesSearch && matchesFilter
         }
     }
 
@@ -210,6 +218,56 @@ fun SubscribersScreen(viewModel: MainViewModel) {
                 shape = RoundedCornerShape(12.dp),
                 colors = appTextFieldColors()
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3-State Filter Row for Read / Unread Subscribers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val filterOptions = listOf(
+                    Triple("all", "الكل", null),
+                    Triple("read", "تمت قراءتهم", Color(0xFF10B981)),
+                    Triple("unread", "بانتظار القراءة", Color(0xFFFBBF24))
+                )
+                filterOptions.forEach { (type, label, dotColor) ->
+                    val isSelected = filterType == type
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { filterType = type },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (dotColor != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(dotColor, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -812,13 +870,15 @@ fun SubscriberBillHistoryDialog(
     val filtered = remember(allInvoices, subscriber.id) {
         allInvoices.filter { it.subscriberId == subscriber.id }
     }
+    
+    var selectedInvoiceForHistoryPhoto by remember { mutableStateOf<InvoiceHistory?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("سجل فواتير المشترك", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
                 horizontalAlignment = Alignment.End
             ) {
                 if (filtered.isEmpty()) {
@@ -833,10 +893,36 @@ fun SubscriberBillHistoryDialog(
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(), 
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically, 
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            
+                                            // Payment status clickable badge
+                                            Surface(
+                                                modifier = Modifier.clickable { viewModel.toggleInvoicePaidStatus(invoice) },
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = if (invoice.isPaid) Color(0xFFE6F4EA) else Color(0xFFFFF3CD),
+                                                border = BorderStroke(1.dp, if (invoice.isPaid) Color(0xFF10B981) else Color(0xFFD97706))
+                                            ) {
+                                                Text(
+                                                    text = if (invoice.isPaid) "تم الدفع ✓" else "اضغط لدفع 💵",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (invoice.isPaid) Color(0xFF137333) else Color(0xFFB06000),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
                                         Text(invoice.date, fontSize = 10.sp, color = Color.Gray)
                                     }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text("القراءات: ${invoice.previousReading} -> ${invoice.currentReading} (${invoice.consumption} Kw)", fontSize = 11.sp)
                                     if (invoice.notes.isNotEmpty()) {
                                         Text("ملاحظة: ${invoice.notes}", fontSize = 11.sp, color = Color.Gray)
@@ -846,12 +932,18 @@ fun SubscriberBillHistoryDialog(
                                             try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
                                         }
                                         bitmap?.let {
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Spacer(modifier = Modifier.height(6.dp))
                                             Image(
-                                                bitmap = it.asImageBitmap(), contentDescription = "Proof",
-                                                modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(6.dp)),
+                                                bitmap = it.asImageBitmap(), 
+                                                contentDescription = "Proof",
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(100.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable { selectedInvoiceForHistoryPhoto = invoice },
                                                 contentScale = ContentScale.Crop
                                             )
+                                            Text("🔍 انقر على الصورة لقراءتها بحجم كامل", fontSize = 9.sp, color = MaterialTheme.colorScheme.primary)
                                         }
                                     }
                                     TextButton(
@@ -867,6 +959,66 @@ fun SubscriberBillHistoryDialog(
         },
         confirmButton = { Button(onClick = onDismiss) { Text("إغلاق") } }
     )
+
+    selectedInvoiceForHistoryPhoto?.let { invoice ->
+        Dialog(
+            onDismissRequest = { selectedInvoiceForHistoryPhoto = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .wrapContentHeight()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { selectedInvoiceForHistoryPhoto = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                        }
+                        Text(
+                            text = "عرض صورة العداد كاملة",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Right
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val bitmap = remember(invoice) {
+                        try { invoice.photoProofPath?.let { path -> BitmapFactory.decodeFile(path) } } catch (e: Exception) { null }
+                    }
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = "صورة العداد تاريخية",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 250.dp, max = 500.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    } ?: Text("لم يتم العثور على المسار أو فشل تحميل الصورة.", modifier = Modifier.padding(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { selectedInvoiceForHistoryPhoto = null },
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Text("إغلاق النافذة")
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -875,7 +1027,11 @@ fun FinancialDashboard(viewModel: MainViewModel) {
     val allInvoices by viewModel.allInvoices.collectAsStateWithLifecycle(initialValue = emptyList())
 
     val totalConsumption = remember(allInvoices) { allInvoices.sumOf { it.consumption } }
-    val totalCashExpected = remember(allInvoices) { allInvoices.sumOf { it.amount } }
+    
+    // Total cash only includes paid invoices
+    val totalCashCollected = remember(allInvoices) { allInvoices.filter { it.isPaid }.sumOf { it.amount } }
+    val totalCashPending = remember(allInvoices) { allInvoices.filter { !it.isPaid }.sumOf { it.amount } }
+    
     val readCount = remember(subscribers) { subscribers.count { it.isRead } }
     val unreadCount = remember(subscribers) { subscribers.count { !it.isRead } }
 
@@ -894,15 +1050,33 @@ fun FinancialDashboard(viewModel: MainViewModel) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                     Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("مجموع الجباية", fontSize = 11.sp)
-                        Text("%.1f شيكل".format(totalCashExpected), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("مجموع الجباية (المدفوعة)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("%.1f شيكل".format(totalCashCollected), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("مجموع الاستهلاك", fontSize = 11.sp)
+                        Text("مجموع الاستهلاك", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Text("$totalConsumption Kw", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+
+        // Outstanding/pending dues card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("%.1f شيكل".format(totalCashPending), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Text("المبالغ المتبقية بانتظار الدفع:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -942,18 +1116,58 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(10.dp), 
+                        horizontalArrangement = Arrangement.SpaceBetween, 
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Left hand side elements: Amount, Payment state toggle, Image preview
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically, 
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            invoice.photoProofPath?.let {
-                                IconButton(onClick = { selectedInvoiceForPhoto = invoice }, modifier = Modifier.size(28.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape)) {
-                                    Icon(Icons.Default.Check, contentDescription = "View Photo", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                            
+                            // Interactive Payment Toggle status
+                            Surface(
+                                modifier = Modifier.clickable { viewModel.toggleInvoicePaidStatus(invoice) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (invoice.isPaid) Color(0xFFE6F4EA) else Color(0xFFFFF3CD),
+                                border = BorderStroke(1.dp, if (invoice.isPaid) Color(0xFF10B981) else Color(0xFFD97706))
+                            ) {
+                                Text(
+                                    text = if (invoice.isPaid) "تم الدفع ✓" else "اضغط لدفع 💵",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (invoice.isPaid) Color(0xFF137333) else Color(0xFFB06000),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                            
+                            // Image Preview indicator
+                            invoice.photoProofPath?.let { path ->
+                                val bitmap = remember(path) {
+                                    try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
+                                }
+                                bitmap?.let {
+                                    Image(
+                                        bitmap = it.asImageBitmap(),
+                                        contentDescription = "صورة العداد",
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable { selectedInvoiceForPhoto = invoice },
+                                        contentScale = ContentScale.Crop
+                                    )
                                 }
                             }
                         }
+                        
+                        // Right hand side elements: Customer Name and Consumption
                         Column(horizontalAlignment = Alignment.End) {
                             Text(sub?.name ?: "مشترك محذوف", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             Text("الاستهلاك: ${invoice.consumption} Kw | من ${invoice.previousReading} إلى ${invoice.currentReading}", fontSize = 11.sp, color = Color.Gray)
+                            Text(invoice.date, fontSize = 9.sp, color = Color.Gray)
                         }
                     }
                 }

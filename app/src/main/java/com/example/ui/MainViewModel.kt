@@ -175,6 +175,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleInvoicePaidStatus(invoice: InvoiceHistory) {
+        viewModelScope.launch {
+            val updated = invoice.copy(isPaid = !invoice.isPaid)
+            repository.insertInvoice(updated)
+        }
+    }
+
     suspend fun getAverageConsumptionForSubscriber(subscriberId: Int): Double {
         val invoices = repository.getInvoicesForSubscriberSync(subscriberId)
         if (invoices.isEmpty()) return -1.0

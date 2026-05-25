@@ -13,5 +13,6 @@ data class InvoiceHistory(
     val amount: Double,
     val date: String,
     val notes: String = "",
-    val photoProofPath: String? = null
+    val photoProofPath: String? = null,
+    val isPaid: Boolean = false
 )
