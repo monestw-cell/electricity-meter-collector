@@ -16,8 +16,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters.add("arm64-v8a")
+        val targetAbi = project.findProperty("targetAbi") as String?
+        if (!targetAbi.isNullOrEmpty()) {
+            ndk {
+                abiFilters.add(targetAbi)
+            }
+        } else if (System.getenv("GITHUB_ACTIONS") == "true") {
+            ndk {
+                abiFilters.add("arm64-v8a")
+            }
         }
     }
 
