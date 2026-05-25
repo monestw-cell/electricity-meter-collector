@@ -1,0 +1,6 @@
+{
+  "name": "عداد",
+  "description": "تطبيق عدّاد لجباية المولدات الكهربائية وتتبع قراءات المشتركين وحساب فواتيرهم بالكامل دون إنترنت.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
