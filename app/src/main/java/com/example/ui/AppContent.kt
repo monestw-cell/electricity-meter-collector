@@ -1,18 +1,19 @@
 package com.example.ui
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,42 +25,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.InvoiceHistory
-import com.example.data.model.Subscriber
 import com.example.data.model.Settings
-import java.util.UUID
+import com.example.data.model.Subscriber
+import java.io.File
 
 @Composable
 fun appTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-    focusedLabelColor = MaterialTheme.colorScheme.primary,
-    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
     focusedBorderColor = MaterialTheme.colorScheme.primary,
-    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-    cursorColor = MaterialTheme.colorScheme.primary,
-    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    unfocusedBorderColor = Color.LightGray.copy(alpha = 0.6f),
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = Color.Gray
 )
 
 @Composable
 fun AppContent(viewModel: MainViewModel) {
-    val context = LocalContext.current
     val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
-    
-    // Check if app lock is enabled and unlocked already
     var appUnlocked by remember { mutableStateOf(false) }
 
     LaunchedEffect(settingsState.appLockEnabled) {
@@ -69,10 +62,7 @@ fun AppContent(viewModel: MainViewModel) {
     }
 
     if (settingsState.appLockEnabled && !appUnlocked) {
-        AppLockScreen(
-            settings = settingsState,
-            onUnlocked = { appUnlocked = true }
-        )
+        AppLockScreen(settings = settingsState, onUnlocked = { appUnlocked = true })
     } else {
         var currentTab by remember { mutableStateOf("subscribers") }
 
@@ -83,7 +73,7 @@ fun AppContent(viewModel: MainViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.primary)
-                        .padding(top = 36.dp, bottom = 16.dp, start = 16.dp, end = 16.dp)
+                        .padding(top = 36.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -92,7 +82,7 @@ fun AppContent(viewModel: MainViewModel) {
                     ) {
                         Text(
                             text = "عَدَّاد الجباية الذكي",
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             modifier = Modifier.testTag("app_title")
@@ -101,13 +91,13 @@ fun AppContent(viewModel: MainViewModel) {
                             imageVector = Icons.Default.Star,
                             contentDescription = "Logo",
                             tint = Color.Yellow,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "جباية وإدارة المولدات الكهربائية دون إنترنت",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 }
@@ -118,25 +108,25 @@ fun AppContent(viewModel: MainViewModel) {
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     NavigationBarItem(
-                        selected = (currentTab == "subscribers"),
-                        onClick = { currentTab = "subscribers" },
-                        icon = { Icon(Icons.Default.AccountCircle, "المشتركين") },
-                        label = { Text("المشتركون", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.testTag("tab_subscribers")
+                        selected = (currentTab == "settings"),
+                        onClick = { currentTab = "settings" },
+                        icon = { Icon(Icons.Default.Settings, "الإعداد") },
+                        label = { Text("الإعدادات", fontSize = 11.sp) },
+                        modifier = Modifier.testTag("tab_settings")
                     )
                     NavigationBarItem(
                         selected = (currentTab == "stats"),
                         onClick = { currentTab = "stats" },
-                        icon = { Icon(Icons.Default.Info, "الإحصائيات") },
-                        label = { Text("المالية والأرقام", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        icon = { Icon(Icons.Default.Info, "المالية") },
+                        label = { Text("المالية والأرقام", fontSize = 11.sp) },
                         modifier = Modifier.testTag("tab_stats")
                     )
                     NavigationBarItem(
-                        selected = (currentTab == "settings"),
-                        onClick = { currentTab = "settings" },
-                        icon = { Icon(Icons.Default.Settings, "الإعدادات") },
-                        label = { Text("الإعدادات", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        modifier = Modifier.testTag("tab_settings")
+                        selected = (currentTab == "subscribers"),
+                        onClick = { currentTab = "subscribers" },
+                        icon = { Icon(Icons.Default.AccountCircle, "المشتركين") },
+                        label = { Text("المشتركون", fontSize = 11.sp) },
+                        modifier = Modifier.testTag("tab_subscribers")
                     )
                 }
             }
@@ -150,361 +140,258 @@ fun AppContent(viewModel: MainViewModel) {
                 when (currentTab) {
                     "subscribers" -> SubscribersScreen(viewModel = viewModel)
                     "stats" -> FinancialDashboard(viewModel = viewModel)
-                    "settings" -> {
-                        SettingsScreen(viewModel = viewModel)
-                    }
+                    "settings" -> SettingsScreen(viewModel = viewModel)
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscribersScreen(viewModel: MainViewModel) {
-    val subscribers by viewModel.allSubscribers.collectAsStateWithLifecycle(initialValue = emptyList())
-    val context = LocalContext.current
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf("all") } // "all", "unread", "read"
+    val subscribers by viewModel.subscribers.collectAsStateWithLifecycle(initialValue = emptyList())
+    var searchText by remember { mutableStateOf("") }
     
     var showAddDialog by remember { mutableStateOf(false) }
-    var subscriberToRecordReading by remember { mutableStateOf<Subscriber?>(null) }
-    var subscriberToViewInvoices by remember { mutableStateOf<Subscriber?>(null) }
     var subscriberToEdit by remember { mutableStateOf<Subscriber?>(null) }
-    
-    val filteredList = subscribers.filter { subscriber ->
-        val matchesSearch = subscriber.name.contains(searchQuery, ignoreCase = true) || subscriber.phoneNumber.contains(searchQuery)
-        val matchesFilter = when (selectedFilter) {
-            "unread" -> !subscriber.isRead
-            "read" -> subscriber.isRead
-            else -> true
+    var subscriberToRecord by remember { mutableStateOf<Subscriber?>(null) }
+    var subscriberHistoryToView by remember { mutableStateOf<Subscriber?>(null) }
+
+    val filteredSubscribers = remember(subscribers, searchText) {
+        subscribers.filter {
+            it.name.contains(searchText, ignoreCase = true) || 
+            it.phoneNumber.contains(searchText, ignoreCase = true)
         }
-        matchesSearch && matchesFilter
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                modifier = Modifier.testTag("fab_add_subscriber")
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "إضافة مشترك")
+            }
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            // Search Bar and Add button Row
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = { searchText = it },
+                placeholder = { Text("ابحث باسم المشترك أو الهاتف...", textAlign = TextAlign.Right) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("search_bar_input"),
+                trailingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث") },
+                shape = RoundedCornerShape(12.dp),
+                colors = appTextFieldColors()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("ابحث عن مشترك بالاسم أو الرقم...", fontSize = 13.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "بحث") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("search_subscriber_input"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = appTextFieldColors()
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
                 Button(
-                    onClick = { showAddDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .height(56.dp)
-                        .testTag("btn_trigger_add_subscriber"),
-                    contentPadding = PaddingValues(horizontal = 14.dp)
+                    onClick = { viewModel.resetDailyLectures() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "إضافة")
+                    Text("إعادة تصفير قراءات اليوم 🔄", fontSize = 11.sp)
                 }
+                Text(
+                    text = "عدد المشتركين: ${filteredSubscribers.size}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Filter Chips and Reclear Cycle Reset Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    FilterChip(
-                        selected = (selectedFilter == "all"),
-                        onClick = { selectedFilter = "all" },
-                        label = { Text("الكل", fontSize = 11.sp) }
-                    )
-                    FilterChip(
-                        selected = (selectedFilter == "unread"),
-                        onClick = { selectedFilter = "unread" },
-                        label = { Text("غير مقروء", fontSize = 11.sp) }
-                    )
-                    FilterChip(
-                        selected = (selectedFilter == "read"),
-                        onClick = { selectedFilter = "read" },
-                        label = { Text("مقروء", fontSize = 11.sp) }
-                    )
-                }
-
-                IconButton(
-                    onClick = {
-                        viewModel.resetAllReadingsStatus()
-                        Toast.makeText(context, "تمت إعادة ضبط جميع المشتركين كغير مقروئين لبدء دورة جباية جديدة!", Toast.LENGTH_LONG).show()
-                    },
-                    modifier = Modifier.testTag("btn_reset_all_readings")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "ضبط كغير مقروء للجميع",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (filteredList.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "لا يوجد",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = if (searchQuery.isNotEmpty() || selectedFilter != "all") "لا توجد نتائج مطابقة للتصفية" else "لا يوجد مشتركون مسجلون حالياً",
-                            fontSize = 14.sp,
-                            color = Color.Gray
-                        )
-                    }
+            if (filteredSubscribers.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("لا توجد نتائج مطابقة لمشتركي الخدمة.", color = Color.Gray, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(filteredList) { subscriber ->
-                        SubscriberCard(
+                    items(filteredSubscribers, key = { it.id }) { subscriber ->
+                        SubscriberItemCard(
                             subscriber = subscriber,
-                            onRecordReading = { subscriberToRecordReading = subscriber },
-                            onViewInvoices = { subscriberToViewInvoices = subscriber },
+                            onRecord = { subscriberToRecord = subscriber },
                             onEdit = { subscriberToEdit = subscriber },
                             onDelete = { viewModel.deleteSubscriber(subscriber) },
-                            viewModel = viewModel
+                            onViewHistory = { subscriberHistoryToView = subscriber }
                         )
                     }
                 }
             }
         }
-        
-        // Add Subscriber Dialog
-        if (showAddDialog) {
-            AddSubscriberDialog(
-                onDismiss = { showAddDialog = false },
-                onAdd = { name, phone, initial, notes ->
-                    viewModel.addSubscriber(name, phone, initial, "Meter", 0, notes)
-                    showAddDialog = false
-                }
-            )
-        }
-        
-        // Record Reading Dialog
-        subscriberToRecordReading?.let { subscriber ->
-            RecordReadingDialog(
-                subscriber = subscriber,
-                onDismiss = { subscriberToRecordReading = null },
-                onSave = { reading, note, path ->
-                    viewModel.saveReading(subscriber.id, reading, note, path)
-                    subscriberToRecordReading = null
-                },
-                viewModel = viewModel
-            )
-        }
-        
-        // View Invoices Dialog
-        subscriberToViewInvoices?.let { subscriber ->
-            InvoicesForSubscriberDialog(
-                subscriber = subscriber,
-                viewModel = viewModel,
-                onDismiss = { subscriberToViewInvoices = null }
-            )
-        }
+    }
 
-        // Edit Subscriber Dialog
-        subscriberToEdit?.let { subscriber ->
-            EditSubscriberDialog(
-                subscriber = subscriber,
-                onDismiss = { subscriberToEdit = null },
-                onSave = { updated ->
-                    viewModel.updateSubscriber(updated)
-                    subscriberToEdit = null
-                    Toast.makeText(context, "تم تعديل بيانات المشترك بالكامل بنجاح!", Toast.LENGTH_SHORT).show()
+    if (showAddDialog) {
+        AddSubscriberDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, phone, initial, notes ->
+                viewModel.addSubscriber(name, phone, initial, notes)
+                showAddDialog = false
+            }
+        )
+    }
+
+    if (subscriberToEdit != null) {
+        EditSubscriberDialog(
+            subscriber = subscriberToEdit!!,
+            onDismiss = { subscriberToEdit = null },
+            onSave = { updated ->
+                viewModel.updateSubscriber(updated)
+                subscriberToEdit = null
+            }
+        )
+    }
+
+    if (subscriberToRecord != null) {
+        RecordReadingDialog(
+            subscriber = subscriberToRecord!!,
+            viewModel = viewModel,
+            onDismiss = { subscriberToRecord = null },
+            onSave = { reading, notes, photo ->
+                viewModel.recordReading(subscriberToRecord!!, reading, notes, photo) {
+                    subscriberToRecord = null
                 }
-            )
-        }
+            }
+        )
+    }
+
+    if (subscriberHistoryToView != null) {
+        SubscriberBillHistoryDialog(
+            subscriber = subscriberHistoryToView!!,
+            viewModel = viewModel,
+            onDismiss = { subscriberHistoryToView = null }
+        )
     }
 }
 
 @Composable
-fun SubscriberCard(
+fun SubscriberItemCard(
     subscriber: Subscriber,
-    onRecordReading: () -> Unit,
-    onViewInvoices: () -> Unit,
+    onRecord: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    viewModel: MainViewModel
+    onViewHistory: () -> Unit
 ) {
-    var showFullMenu by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showFullMenu = !showFullMenu }
-            .testTag("subscriber_card_${subscriber.id}"),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clickable { onViewHistory() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (subscriber.isRead) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.End
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Card(
+                    shape = RoundedCornerShape(6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (subscriber.isRead) Color(0xFF10B981) else Color(0xFFF59E0B)
+                    )
+                ) {
                     Text(
-                        text = subscriber.name,
-                        fontSize = 16.sp,
+                        text = if (subscriber.isRead) "تمت قراءته" else "لم يقرأ",
+                        color = Color.White,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (subscriber.phoneNumber.isNotEmpty()) subscriber.phoneNumber else "لا يوجد رقم هاتف",
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
-
-                val tagText = if (subscriber.isRead) "مقروء ✓" else "بانتظار القراءة ✗"
-                val tagColor = if (subscriber.isRead) Color(0xFF2E7D32) else Color(0xFFD32F2F)
-
-                Surface(
-                    color = tagColor.copy(alpha = 0.12f),
-                    contentColor = tagColor,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .clickable { viewModel.toggleReadStatus(subscriber) }
-                ) {
-                    Text(
-                        text = tagText,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = subscriber.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Divider(color = Color.LightGray.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(2.dp))
+            if (subscriber.phoneNumber.isNotEmpty()) {
+                Text("الهاتف: ${subscriber.phoneNumber}", fontSize = 11.sp, color = Color.Gray)
+            }
+            if (subscriber.notes.isNotEmpty()) {
+                Text("الموقع/ملاحظات: ${subscriber.notes}", fontSize = 11.sp, color = Color.Gray)
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Divider(color = Color.LightGray.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("آخر قراءة للعداد", fontSize = 11.sp, color = Color.Gray)
-                    Text(
-                        text = "${subscriber.currentReading} ك.و",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = onRecordReading,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .testTag("btn_record_reading_${subscriber.id}")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(30.dp).background(Color.LightGray.copy(alpha = 0.2f), CircleShape)
                     ) {
-                        Text("تسجيل قراءة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Edit, contentDescription = "تعديل", tint = Color.Gray, modifier = Modifier.size(14.dp))
                     }
-
-                    OutlinedButton(
-                        onClick = onViewInvoices,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .testTag("btn_view_invoices_${subscriber.id}")
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(30.dp).background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f), CircleShape)
                     ) {
-                        Text("الفواتير", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
                     }
                 }
-            }
 
-            // Expanded extra menu actions (Delete & Details)
-            AnimatedVisibility(visible = showFullMenu) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Divider(color = Color.LightGray.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (subscriber.notes.isNotEmpty()) {
+                    Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "العنوان والملاحظات: ${subscriber.notes}",
+                            text = "الحالية: ${subscriber.currentReading} Kw",
                             fontSize = 12.sp,
-                            color = Color.LightGray,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Start
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "البدء: ${subscriber.initialReading} Kw",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = onEdit,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier.testTag("btn_edit_subscriber_${subscriber.id}")
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "تعديل معلومات المشترك", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("تعديل كامل البيانات", fontSize = 12.sp)
-                        }
 
-                        TextButton(
-                            onClick = onDelete,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red),
-                            modifier = Modifier.testTag("btn_delete_subscriber_${subscriber.id}")
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "حذف المشترك", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("حذف المشترك", fontSize = 12.sp)
-                        }
+                    Button(
+                        onClick = onRecord,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (subscriber.isRead) Color.Gray else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(if (subscriber.isRead) "قراءة جديدة" else "تسجيل قراءة", fontSize = 11.sp)
                     }
                 }
             }
@@ -520,28 +407,15 @@ fun AddSubscriberDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    var initialReading by remember { mutableStateOf("") }
+    var initialReading by remember { mutableStateOf("0") }
     var notes by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface,
-        title = {
-            Text(
-                "إضافة مشترك جديد",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Right
-            )
-        },
+        title = { Text("إضافة مشترك جديد", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.End
             ) {
@@ -549,13 +423,10 @@ fun AddSubscriberDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("اسم المشترك") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("add_name_field"),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
                 )
-                
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
@@ -565,21 +436,19 @@ fun AddSubscriberDialog(
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
                 )
-
                 OutlinedTextField(
                     value = initialReading,
                     onValueChange = { initialReading = it },
-                    label = { Text("القراءة الابتدائية للعدّاد") },
+                    label = { Text("القراءة الابتدائية (Kw)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
                 )
-
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("ملاحظات ميدانية/العنوان") },
+                    label = { Text("ملاحظات / العنوان") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
@@ -588,495 +457,13 @@ fun AddSubscriberDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (name.trim().isNotEmpty()) {
-                        val initReadVal = initialReading.toIntOrNull() ?: 0
-                        onAdd(name, phone, initReadVal, notes)
-                    }
-                },
-                modifier = Modifier.testTag("btn_save_new_subscriber")
-            ) {
-                Text("حفظ")
-            }
+                onClick = { if (name.trim().isNotEmpty()) onAdd(name, phone, initialReading.toIntOrNull() ?: 0, notes) }
+            ) { Text("حفظ") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إلغاء")
-            }
+            TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecordReadingDialog(
-    subscriber: Subscriber,
-    onDismiss: () -> Unit,
-    onSave: (Int, String, String?) -> Unit,
-    viewModel: MainViewModel
-) {
-    var readingInput by remember { mutableStateOf("") }
-    var notesInput by remember { mutableStateOf("") }
-    var photoProofPathState by remember { mutableStateOf<String?>(null) }
-    var sendSmsChecked by remember { mutableStateOf(false) }
-    
-    val context = LocalContext.current
-    val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
-
-    val photoSelectionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            photoProofPathState = uri.toString()
-            Toast.makeText(context, "تم تحديد رابط صورة الإثبات بنجاح", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    val noteSuggestions = listOf("عداد سليم", "مغلق", "لا يوجد أحد", "تجاوز", "ملغي")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface,
-        title = {
-            Text(
-                text = "تسجيل قراءة لـ ${subscriber.name}",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Right
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    "آخر قراءة للعداد: ${subscriber.currentReading} ك.و",
-                    fontSize = 13.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Right
-                )
-                OutlinedTextField(
-                    value = readingInput,
-                    onValueChange = { readingInput = it },
-                    label = { Text("القراءة الحالية الجديدة") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("reading_field_input"),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                // Field Notes Suggestion clickable row
-                Text("ملاحظات ميدانية سريعة:", fontSize = 11.sp, color = Color.Gray)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    noteSuggestions.forEach { suggestion ->
-                        SuggestionChip(
-                            onClick = { notesInput = suggestion },
-                            label = { Text(suggestion, fontSize = 11.sp) }
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = notesInput,
-                    onValueChange = { notesInput = it },
-                    label = { Text("كتابة ملاحظة") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Attach Image Button
-                Button(
-                    onClick = { photoSelectionLauncher.launch("image/*") },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "أرفق صورة")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (photoProofPathState == null) "إرفق صورة للعداد" else "تم إرفاق صورة العداد ✓", fontSize = 13.sp)
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Optional SMS billing checkbox
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { sendSmsChecked = !sendSmsChecked }
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        "أريد إرسال الفاتورة برسالة SMS للمشترك",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Checkbox(
-                        checked = sendSmsChecked,
-                        onCheckedChange = { sendSmsChecked = it }
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val finalReading = readingInput.toIntOrNull() ?: subscriber.currentReading
-                    val previousReading = subscriber.currentReading
-                    val consumption = (finalReading - previousReading).coerceAtLeast(0)
-                    val totalAmount = consumption * settingsState.pricePerKw
-
-                    if (sendSmsChecked) {
-                        val smsBody = """
-                        مشتركنا العزيز: ${subscriber.name}
-                        فاتورة الكهرباء للأسبوع الحالي:
-                        - القراءة السابقة: $previousReading
-                        - القراءة الحالية: $finalReading
-                        - الاستهلاك: $consumption كيلوواط
-                        - سعر الكيلو: ${settingsState.pricePerKw} شيكل
-                        - المبلغ المطلوب: $totalAmount شيكل
-                        شكراً لكم.
-                        """.trimIndent()
-                        
-                        try {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
-                                data = android.net.Uri.parse("smsto:${subscriber.phoneNumber}")
-                                putExtra("sms_body", smsBody)
-                            }
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "فشل فتح تطبيق الرسائل: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-
-                    onSave(finalReading, notesInput, photoProofPathState)
-                },
-                modifier = Modifier.testTag("btn_confirm_save_reading")
-            ) {
-                Text("تسجيل القراءة والفاتورة")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إلغاء")
-            }
-        }
-    )
-}
-
-@Composable
-fun InvoicesForSubscriberDialog(
-    subscriber: Subscriber,
-    viewModel: MainViewModel,
-    onDismiss: () -> Unit
-) {
-    val invoices: List<InvoiceHistory> by viewModel.getInvoicesForSubscriber(subscriber.id).collectAsState(initial = emptyList())
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface,
-        title = {
-            Text(
-                text = "فواتير المشترك: ${subscriber.name}",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Right
-            )
-        },
-        text = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 400.dp)
-            ) {
-                if (invoices.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("لا تتوفر فواتير مسجلة لهذا المشترك", fontSize = 13.sp, color = Color.Gray)
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(invoices) { invoice ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "${invoice.totalAmount} دولار",
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontSize = 14.sp
-                                        )
-                                        Text(
-                                            text = invoice.date,
-                                            fontSize = 10.sp,
-                                            color = Color.Gray
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    
-                                    if (subscriber.subscriptionType == "Meter") {
-                                        Text(
-                                            text = "القراءة: ${invoice.previousReading} ➔ ${invoice.currentReading} (${invoice.consumption} كيلوواط)",
-                                            fontSize = 12.sp
-                                        )
-                                    } else {
-                                        Text(
-                                            text = "فترة الأمبيرية الحالية (${subscriber.amperage} أمبير)",
-                                            fontSize = 12.sp
-                                        )
-                                    }
-
-                                    if (invoice.notes.isNotEmpty()) {
-                                        Text(
-                                            text = "ملاحظة: ${invoice.notes}",
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (invoice.isPaid) {
-                                            Text(
-                                                "✓ تم الدفع والجباية",
-                                                color = Color(0xFF2E7D32),
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp
-                                            )
-                                        } else {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                Button(
-                                                    onClick = { viewModel.payInvoice(invoice) },
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                                    modifier = Modifier
-                                                        .height(30.dp)
-                                                        .testTag("pay_invoice_btn_${invoice.id}")
-                                                ) {
-                                                    Text("تسجيل دفع", fontSize = 10.sp, color = Color.White)
-                                                }
-
-                                                TextButton(
-                                                    onClick = { viewModel.deleteInvoice(invoice) },
-                                                    modifier = Modifier.height(30.dp),
-                                                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
-                                                ) {
-                                                    Text("حذف بالفاتورة", fontSize = 10.sp)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إغلاق")
-            }
-        }
-    )
-}
-
-@Composable
-fun FinancialDashboard(viewModel: MainViewModel) {
-    val subscribers by viewModel.allSubscribers.collectAsStateWithLifecycle(initialValue = emptyList())
-    val invoices by viewModel.allInvoices.collectAsStateWithLifecycle(initialValue = emptyList())
-    val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
-
-    val totalKw = invoices.sumOf { it.consumption }
-    val totalAmountDue = invoices.sumOf { it.totalAmount }
-    val totalInvoicesPaid = invoices.filter { it.isPaid }.sumOf { it.totalAmount }
-    val totalRemainingDues = totalAmountDue - totalInvoicesPaid
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("إجمالي المبالغ والتحصيل كليا", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "$totalAmountDue ${settingsState.currency}",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                DashboardStatCard(
-                    title = "مبالغ تم جبايتها",
-                    value = "$totalInvoicesPaid ${settingsState.currency}",
-                    icon = Icons.Default.CheckCircle,
-                    color = Color(0xFF2E7D32),
-                    modifier = Modifier.weight(1f)
-                )
-                DashboardStatCard(
-                    title = "مبالغ مستحقة",
-                    value = "$totalRemainingDues ${settingsState.currency}",
-                    icon = Icons.Default.Warning,
-                    color = Color(0xFFC62828),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("معلومات الاستهلاك العام", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("إجمالي الاستهلاك الكهربائي", fontSize = 13.sp, color = Color.Gray)
-                        Text("$totalKw ك.و", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("عدد المشتركين الكلي", fontSize = 13.sp, color = Color.Gray)
-                        Text("${subscribers.size} مشتركين", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Mock chart progression
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("نسبة التحصيل والتحقق المكتمل", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    val ratioFraction = if (totalAmountDue > 0) (totalInvoicesPaid / totalAmountDue).toFloat() else 0f
-                    val percentage = (ratioFraction * 100).toInt()
-
-                    LinearProgressIndicator(
-                        progress = ratioFraction,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(14.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("اكتمل بنسبة", fontSize = 12.sp, color = Color.Gray)
-                        Text("$percentage%", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DashboardStatCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Icon(imageVector = icon, contentDescription = title, tint = color, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(title, fontSize = 11.sp, color = Color.Gray)
-            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = color)
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1094,99 +481,248 @@ fun EditSubscriberDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurface,
-        title = {
-            Text(
-                "تعديل بيانات المشترك",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Right
-            )
-        },
+        title = { Text("تعديل بيانات المشترك", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("اسم المشترك") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-                
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("رقم الهاتف") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                OutlinedTextField(
-                    value = initialReading,
-                    onValueChange = { initialReading = it },
-                    label = { Text("القراءة الابتدائية للعدّاد") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                OutlinedTextField(
-                    value = currentReading,
-                    onValueChange = { currentReading = it },
-                    label = { Text("القراءة الحالية للعدّاد") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("ملاحظات ميدانية/العنوان") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("الاسم") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("الهاتف") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = initialReading, onValueChange = { initialReading = it }, label = { Text("القراءة الابتدائية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("القراءة الحالية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("ملاحظات/العنوان") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     if (name.trim().isNotEmpty()) {
-                        val initReadVal = initialReading.toIntOrNull() ?: subscriber.initialReading
-                        val currReadVal = currentReading.toIntOrNull() ?: subscriber.currentReading
-                        onSave(
-                            subscriber.copy(
-                                name = name,
-                                phoneNumber = phone,
-                                initialReading = initReadVal,
-                                currentReading = currReadVal,
-                                notes = notes
-                            )
+                        onSave(subscriber.copy(
+                            name = name, phoneNumber = phone,
+                            initialReading = initialReading.toIntOrNull() ?: subscriber.initialReading,
+                            currentReading = currentReading.toIntOrNull() ?: subscriber.currentReading,
+                            notes = notes
+                        ))
+                    }
+                }
+            ) { Text("حفظ التغييرات") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("إلغاء") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecordReadingDialog(
+    subscriber: Subscriber,
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit,
+    onSave: (Int, String, String?) -> Unit
+) {
+    var readingInput by remember { mutableStateOf("") }
+    var notesInput by remember { mutableStateOf("") }
+    var sendSmsChecked by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
+
+    var historicalAverage by remember { mutableStateOf(-1.0) }
+    LaunchedEffect(subscriber.id) {
+        historicalAverage = viewModel.getAverageConsumptionForSubscriber(subscriber.id)
+    }
+
+    var tempPhotoFile by remember { mutableStateOf<File?>(null) }
+    var photoPath by remember { mutableStateOf<String?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempPhotoFile != null) {
+            photoPath = tempPhotoFile!!.absolutePath
+        }
+    }
+
+    var showWarningPrompt by remember { mutableStateOf(false) }
+
+    fun handleSave() {
+        val finalReading = readingInput.toIntOrNull() ?: subscriber.currentReading
+        val previousReading = subscriber.currentReading
+        val consumption = (finalReading - previousReading).coerceAtLeast(0)
+        val totalAmount = consumption * settingsState.pricePerKw
+
+        if (finalReading < previousReading) {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            vibrator?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    it.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.vibrate(300)
+                }
+            }
+            Toast.makeText(context, "خطأ: القراءة الحالية أقل من القراءة السابقة (${previousReading} Kw)!", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (historicalAverage > 0 && consumption >= historicalAverage * 5 && !showWarningPrompt) {
+            showWarningPrompt = true
+            return
+        }
+
+        val persistentPhotoPath = if (photoPath != null) {
+            try {
+                val originFile = File(photoPath!!)
+                if (originFile.exists()) {
+                    val destFile = File(context.filesDir, "meter_${subscriber.id}_${System.currentTimeMillis()}.jpg")
+                    originFile.copyTo(destFile, overwrite = true)
+                    destFile.absolutePath
+                } else null
+            } catch (e: Exception) { null }
+        } else null
+
+        if (sendSmsChecked) {
+            val smsBody = """
+            مشتركنا العزيز: ${subscriber.name}
+            فاتورة الكهرباء:
+            - القراءة السابقة: $previousReading Kw
+            - القراءة الحالية: $finalReading Kw
+            - استهلاكك: $consumption Kw
+            - القيمة المطلوبة: $totalAmount شيكل
+            """.trimIndent()
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("smsto:${subscriber.phoneNumber}")
+                    putExtra("sms_body", smsBody)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "خطأ بالرسائل: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        onSave(finalReading, notesInput, persistentPhotoPath)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("تسجيل قراءة للعداد", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text("المشترك: ${subscriber.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("آخر قراءة للعداد: ${subscriber.currentReading} Kw", fontSize = 12.sp, color = Color.Gray)
+                
+                if (historicalAverage > 0) {
+                    Text("معدل الاستهلاك المعتاد للزبون: %.1f Kw".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+
+                if (showWarningPrompt) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
+                            Text("تنبيه: الاستهلاك مرتفع جداً!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val inputVal = readingInput.toIntOrNull() ?: subscriber.currentReading
+                            Text("الاستهلاك الحالي (${inputVal - subscriber.currentReading} Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = readingInput,
+                    onValueChange = { readingInput = it; showWarningPrompt = false },
+                    label = { Text("القراءة الحالية الجديدة (Kw)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().testTag("reading_field_input"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+
+                Text("ملاحظات ميدانية سريعة:", fontSize = 10.sp, color = Color.Gray)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
+                ) {
+                    listOf("العداد معطل", "استهلاك مرتفع", "مغلق").forEach { tag ->
+                        Card(
+                            modifier = Modifier.clickable { notesInput = tag },
+                            shape = RoundedCornerShape(4.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Text(tag, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = notesInput,
+                    onValueChange = { notesInput = it },
+                    label = { Text("ملاحظات الفاتورة") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = appTextFieldColors()
+                )
+
+                Button(
+                    onClick = {
+                        try {
+                            val file = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
+                            tempPhotoFile = file
+                            val uri = FileProvider.getUriForFile(context, "com.example.aadad.fileprovider", file)
+                            cameraLauncher.launch(uri)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "فشل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(if (photoPath == null) "التقاط صورة للعداد 📸" else "تم التقاط صورة العداد ✓", fontSize = 12.sp)
+                }
+
+                photoPath?.let { path ->
+                    val bitmap = remember(path) {
+                        try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
+                    }
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(), contentDescription = "Preview",
+                            modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
-            ) {
-                Text("حفظ التعديلات")
+
+                if (subscriber.phoneNumber.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { sendSmsChecked = !sendSmsChecked },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Text("إرسال فاتورة SMS للمشترك", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Checkbox(checked = sendSmsChecked, onCheckedChange = { sendSmsChecked = it })
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { handleSave() }, modifier = Modifier.testTag("btn_confirm_save_reading")) {
+                Text(if (showWarningPrompt) "تأكيد واستمرار بالحفظ" else "حفظ")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إلغاء")
+            TextButton(onClick = { if (showWarningPrompt) showWarningPrompt = false else onDismiss() }) {
+                Text(if (showWarningPrompt) "تعديل القراءة" else "إلغاء")
             }
         }
     )
@@ -1194,13 +730,194 @@ fun EditSubscriberDialog(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun SubscriberBillHistoryDialog(
+    subscriber: Subscriber,
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit
+) {
+    val allInvoices by viewModel.allInvoices.collectAsStateWithLifecycle(initialValue = emptyList())
+    val filtered = remember(allInvoices, subscriber.id) {
+        allInvoices.filter { it.subscriberId == subscriber.id }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("سجل فواتير المشترك", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                if (filtered.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        Text("لا يوجد فواتير مسجلة بعد.", color = Color.Gray, fontSize = 12.sp)
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(filtered) { invoice ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                        Text(invoice.date, fontSize = 10.sp, color = Color.Gray)
+                                    }
+                                    Text("القراءات: ${invoice.previousReading} -> ${invoice.currentReading} (${invoice.consumption} Kw)", fontSize = 11.sp)
+                                    if (invoice.notes.isNotEmpty()) {
+                                        Text("ملاحظة: ${invoice.notes}", fontSize = 11.sp, color = Color.Gray)
+                                    }
+                                    invoice.photoProofPath?.let { path ->
+                                        val bitmap = remember(path) {
+                                            try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
+                                        }
+                                        bitmap?.let {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Image(
+                                                bitmap = it.asImageBitmap(), contentDescription = "Proof",
+                                                modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(6.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        }
+                                    }
+                                    TextButton(
+                                        onClick = { viewModel.deleteInvoice(invoice) },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                    ) { Text("حذف الفاتورة 🗑", fontSize = 10.sp) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("إغلاق") } }
+    )
+}
+
+@Composable
+fun FinancialDashboard(viewModel: MainViewModel) {
+    val subscribers by viewModel.subscribers.collectAsStateWithLifecycle(initialValue = emptyList())
+    val allInvoices by viewModel.allInvoices.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val totalConsumption = remember(allInvoices) { allInvoices.sumOf { it.consumption } }
+    val totalCashExpected = remember(allInvoices) { allInvoices.sumOf { it.amount } }
+    val readCount = remember(subscribers) { subscribers.count { it.isRead } }
+    val unreadCount = remember(subscribers) { subscribers.count { !it.isRead } }
+
+    var selectedInvoiceForPhoto by remember { mutableStateOf<InvoiceHistory?>(null) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.End
+    ) {
+        item {
+            Text("لوحة الأرقام والجباية المالية", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("مجموع الجباية", fontSize = 11.sp)
+                        Text("%.1f شيكل".format(totalCashExpected), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("مجموع الاستهلاك", fontSize = 11.sp)
+                        Text("$totalConsumption Kw", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("تمت قراءتهم", fontSize = 11.sp, color = Color.Gray)
+                        Text("$readCount", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                    }
+                }
+                Card(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("بانتظار قراءتهم", fontSize = 11.sp, color = Color.Gray)
+                        Text("$unreadCount", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                    }
+                }
+            }
+        }
+
+        item {
+            Text("آخر الفواتير الصادرة", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+        }
+
+        if (allInvoices.isEmpty()) {
+            item {
+                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                    Text("لا توجد فواتير ومستندات جباية حالياً.", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+        } else {
+            items(allInvoices) { invoice ->
+                val sub = subscribers.find { it.id == invoice.subscriberId }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            invoice.photoProofPath?.let {
+                                IconButton(onClick = { selectedInvoiceForPhoto = invoice }, modifier = Modifier.size(28.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape)) {
+                                    Icon(Icons.Default.ThumbUp, contentDescription = "View Photo", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(sub?.name ?: "مشترك محذوف", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("الاستهلاك: ${invoice.consumption} Kw | من ${invoice.previousReading} إلى ${invoice.currentReading}", fontSize = 11.sp, color = Color.Gray)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    selectedInvoiceForPhoto?.let { invoice ->
+        AlertDialog(
+            onDismissRequest = { selectedInvoiceForPhoto = null },
+            title = { Text("صورة العداد المرفقة بالفاتورة", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
+            text = {
+                val bitmap = remember(invoice) {
+                    try { BitmapFactory.decodeFile(invoice.photoProofPath) } catch (e: Exception) { null }
+                }
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(), contentDescription = "Photo Proof",
+                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                } ?: Text("فشل تحميل الصورة.")
+            },
+            confirmButton = { Button(onClick = { selectedInvoiceForPhoto = null }) { Text("إغلاق") } }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val settingsState by viewModel.settings.collectAsStateWithLifecycle(initialValue = Settings())
 
-    var editPriceKw by remember { mutableStateOf(settingsState.pricePerKw.toString()) }
-    var editAppLockEnabled by remember { mutableStateOf(settingsState.appLockEnabled) }
-    var editAppLockType by remember { mutableStateOf(settingsState.appLockType) } // "PIN", "PASSWORD", "BIOMETRIC"
-    var editAppLockSecret by remember { mutableStateOf(settingsState.appLockSecret) }
+    var editPriceKw by remember { mutableStateOf("") }
+    var editAppLockEnabled by remember { mutableStateOf(false) }
+    var editAppLockType by remember { mutableStateOf("PIN") }
+    var editAppLockSecret by remember { mutableStateOf("") }
 
     val context = LocalContext.current
 
@@ -1212,100 +929,55 @@ fun SettingsScreen(viewModel: MainViewModel) {
     }
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.End
     ) {
         item {
-            Text(
-                "إعدادات تسعرة الطاقة وجباية الشيكل",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Right
-            )
+            Text("إعدادات التسعيرة وقفل التطبيق", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
         }
 
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End) {
                     OutlinedTextField(
                         value = editPriceKw,
                         onValueChange = { editPriceKw = it },
-                        label = { Text("السعر لكل كيلوواط (شيكل ILS)") },
+                        label = { Text("السعر الكيلوواط (شيكل ILS)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         colors = appTextFieldColors()
                     )
 
-                    Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                    Divider(color = Color.LightGray.copy(alpha = 0.4f))
 
-                    Text(
-                        "حماية قفل التطبيق بكامله",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Right
-                    )
-
+                    Text("قفل أمان التطبيق بالكامل", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { editAppLockEnabled = !editAppLockEnabled }
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { editAppLockEnabled = !editAppLockEnabled }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Switch(
-                            checked = editAppLockEnabled,
-                            onCheckedChange = { editAppLockEnabled = it }
-                        )
-                        Text("تفعيل القفل السري بكامل التطبيق")
+                        Switch(checked = editAppLockEnabled, onCheckedChange = { editAppLockEnabled = it })
+                        Text("قفل التطبيق برمز حماية")
                     }
 
                     if (editAppLockEnabled) {
-                        Text("اختر طريقة القفل:", fontSize = 12.sp, color = Color.Gray)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            FilterChip(
-                                selected = (editAppLockType == "PIN"),
-                                onClick = { editAppLockType = "PIN" },
-                                label = { Text("رمز PIN") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = (editAppLockType == "PASSWORD"),
-                                onClick = { editAppLockType = "PASSWORD" },
-                                label = { Text("كلمة مرور") },
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterChip(
-                                selected = (editAppLockType == "BIOMETRIC"),
-                                onClick = { editAppLockType = "BIOMETRIC" },
-                                label = { Text("بصمة") },
-                                modifier = Modifier.weight(1f)
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = (editAppLockType == "PIN"), onClick = { editAppLockType = "PIN" }, label = { Text("رمز PIN") }, modifier = Modifier.weight(1f))
+                            FilterChip(selected = (editAppLockType == "PASSWORD"), onClick = { editAppLockType = "PASSWORD" }, label = { Text("كلمة سر") }, modifier = Modifier.weight(1f))
+                            FilterChip(selected = (editAppLockType == "BIOMETRIC"), onClick = { editAppLockType = "BIOMETRIC" }, label = { Text("بصمة") }, modifier = Modifier.weight(1f))
                         }
 
                         if (editAppLockType == "PIN" || editAppLockType == "PASSWORD") {
                             OutlinedTextField(
                                 value = editAppLockSecret,
                                 onValueChange = { editAppLockSecret = it },
-                                label = { Text(if (editAppLockType == "PIN") "رمز PIN السري (رقمي)" else "كلمة السر الخاصة بك") },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = if (editAppLockType == "PIN") KeyboardType.Number else KeyboardType.Text
-                                ),
+                                label = { Text(if (editAppLockType == "PIN") "رمز PIN (رقمي)" else "كلمة السر") },
+                                keyboardOptions = KeyboardOptions(keyboardType = if (editAppLockType == "PIN") KeyboardType.Number else KeyboardType.Text),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = appTextFieldColors()
@@ -1313,13 +985,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
                     Button(
                         onClick = {
-                            val kw = editPriceKw.toDoubleOrNull() ?: settingsState.pricePerKw
                             viewModel.updateSettings(
-                                pricePerKw = kw,
+                                pricePerKw = editPriceKw.toDoubleOrNull() ?: settingsState.pricePerKw,
                                 currency = "ILS",
                                 appLockEnabled = editAppLockEnabled,
                                 appLockType = editAppLockType,
@@ -1327,14 +996,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             )
                             Toast.makeText(context, "تم حفظ الإعدادات وقفل الأمان بنجاح!", Toast.LENGTH_SHORT).show()
                         },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("btn_save_settings")
-                    ) {
-                        Text("حفظ التغييرات وحفظ القفل", fontWeight = FontWeight.Bold)
-                    }
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) { Text("حفظ الإعدادات وقفل الحماية") }
                 }
             }
         }
@@ -1348,91 +1011,56 @@ fun AppLockScreen(settings: Settings, onUnlocked: () -> Unit) {
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = if (settings.appLockType == "BIOMETRIC") Icons.Default.Face else Icons.Default.Lock,
-            contentDescription = "🔒",
+            contentDescription = "Lock",
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(72.dp)
+            modifier = Modifier.size(64.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "التطبيق مقفل",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(text = "التطبيق مقفل", fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(
             text = when (settings.appLockType) {
                 "PIN" -> "الرجاء إدخال رمز الـ PIN المكون من أرقام لإلغاء القفل"
                 "PASSWORD" -> "الرجاء إدخال كلمة المرور السرية لإلغاء القفل"
-                else -> "الرجاء استخدام مستشعر البصمة أو النقر للمصادقة السريعة"
+                else -> "الرجاء استخدام المصادقة بالنقر السريع للبصمة"
             },
-            fontSize = 13.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
+            fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         if (settings.appLockType == "BIOMETRIC") {
             Card(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clickable {
-                        Toast.makeText(context, "تمت المصادقة ببصمة الإصبع بنجاح ✓", Toast.LENGTH_SHORT).show()
-                        onUnlocked()
-                    },
+                modifier = Modifier.size(100.dp).clickable {
+                    Toast.makeText(context, "تمت المصادقة ببصمة الإصبع بنجاح ✓", Toast.LENGTH_SHORT).show()
+                    onUnlocked()
+                },
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbUp,
-                        contentDescription = "بصمة",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(54.dp)
-                    )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = Icons.Default.Info, contentDescription = "بصمة", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                "انقر على البصمة لإلغاء القفل السريع",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text("انقر هنا لمحاكاة بصمة الإصبع", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
         }
 
         if (settings.appLockType == "PIN" || settings.appLockType == "PASSWORD") {
             OutlinedTextField(
                 value = passwordInput,
-                onValueChange = {
-                    passwordInput = it
-                    isError = false
-                },
+                onValueChange = { passwordInput = it; isError = false },
                 label = { Text(if (settings.appLockType == "PIN") "رمز PIN السري" else "كلمة المرور") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = if (settings.appLockType == "PIN") KeyboardType.Number else KeyboardType.Text
-                ),
-                modifier = Modifier
-                    .fillMaxWidth(0.81f)
-                    .testTag("app_lock_input_field"),
+                keyboardOptions = KeyboardOptions(keyboardType = if (settings.appLockType == "PIN") KeyboardType.Number else KeyboardType.Text),
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(0.8f).testTag("app_lock_input_field"),
                 shape = RoundedCornerShape(12.dp),
                 isError = isError,
                 colors = appTextFieldColors()
@@ -1440,32 +1068,20 @@ fun AppLockScreen(settings: Settings, onUnlocked: () -> Unit) {
 
             if (isError) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "رمز المرور السرية غير صحيح!",
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "الرمز السري غير صحيح!", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
                     if (passwordInput == settings.appLockSecret) {
                         onUnlocked()
-                    } else {
-                        isError = true
-                    }
+                    } else isError = true
                 },
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth(0.81f)
-                    .height(48.dp)
-                    .testTag("btn_unlock_app")
-            ) {
-                Text("إلغاء القفل", fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth(0.8f).height(48.dp).testTag("btn_unlock_app")
+            ) { Text("إلغاء القفل", fontWeight = FontWeight.Bold) }
         }
     }
 }

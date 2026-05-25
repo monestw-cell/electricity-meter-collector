@@ -8,11 +8,9 @@ import com.example.data.model.InvoiceHistory
 import com.example.data.model.Settings
 import com.example.data.model.Subscriber
 import com.example.data.repository.ReadingRepository
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,37 +24,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         database.settingsDao()
     )
 
-    val allSubscribers: StateFlow<List<Subscriber>> = repository.allSubscribers
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val subscribers: StateFlow<List<Subscriber>> = repository.subscribers.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
-    val allInvoices: StateFlow<List<InvoiceHistory>> = repository.allInvoices
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val settings: StateFlow<Settings> = repository.settings.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Settings()
+    )
 
-    val settings: StateFlow<Settings> = repository.settings
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Settings())
+    val allInvoices: StateFlow<List<InvoiceHistory>> = repository.allInvoices.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
-    fun getInvoicesForSubscriber(subId: Int): Flow<List<InvoiceHistory>> =
-        repository.getInvoicesForSubscriber(subId)
-
-    fun addSubscriber(
-        name: String,
-        phone: String,
-        initialReading: Int,
-        subscriptionType: String,
-        amperage: Int,
-        notes: String
-    ) {
+    init {
+        // Initialize settings once
         viewModelScope.launch {
-            val sub = Subscriber(
+            repository.getSettingsSync()
+        }
+    }
+
+    fun addSubscriber(name: String, phoneNumber: String, initialReading: Int, notes: String) {
+        viewModelScope.launch {
+            val subscriber = Subscriber(
                 name = name,
-                phoneNumber = phone,
+                phoneNumber = phoneNumber,
                 initialReading = initialReading,
                 currentReading = initialReading,
-                subscriptionType = subscriptionType,
-                amperage = amperage,
-                notes = notes
+                notes = notes,
+                subscriptionType = "Meter",
+                amperage = 5,
+                isRead = false
             )
-            repository.insertSubscriber(sub)
+            repository.insertSubscriber(subscriber)
         }
     }
 
@@ -72,96 +77,108 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun saveReading(
-        subscriberId: Int,
-        reading: Int,
-        note: String,
-        photoProofPath: String?
+    fun recordReading(
+        subscriber: Subscriber,
+        newReading: Int,
+        notes: String,
+        photoProofPath: String?,
+        onComplete: (InvoiceHistory) -> Unit
     ) {
         viewModelScope.launch {
-            val subscriber = repository.getSubscriberByIdSync(subscriberId) ?: return@launch
-            val activeSettings = repository.getSettingsSync()
-
             val previousReading = subscriber.currentReading
-            val consumption = (reading - previousReading).coerceAtLeast(0)
-            val amount = consumption * activeSettings.pricePerKw
+            val consumption = (newReading - previousReading).coerceAtLeast(0)
+            val currentSettings = repository.getSettingsSync()
+            val rate = currentSettings.pricePerKw
+            val amount = consumption * rate
 
-            val dateFormat = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale("ar"))
-            val currentDateStr = dateFormat.format(Date())
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val currentDateStr = formatter.format(Date())
 
             val invoice = InvoiceHistory(
-                subscriberId = subscriberId,
-                date = currentDateStr,
+                subscriberId = subscriber.id,
                 previousReading = previousReading,
-                currentReading = reading,
+                currentReading = newReading,
                 consumption = consumption,
-                totalAmount = amount,
-                photoProofPath = photoProofPath,
-                isPaid = false,
-                notes = note
+                amount = amount,
+                date = currentDateStr,
+                notes = notes,
+                photoProofPath = photoProofPath
             )
 
-            // Insert Invoice
+            // Save invoice
             repository.insertInvoice(invoice)
 
-            // Update Subscriber's current reading and mark as read
-            val updatedSub = subscriber.copy(
-                currentReading = reading,
+            // Update subscriber
+            val updatedSubscriber = subscriber.copy(
+                currentReading = newReading,
                 isRead = true
             )
-            repository.updateSubscriber(updatedSub)
+            repository.updateSubscriber(updatedSubscriber)
+
+            onComplete(invoice)
         }
     }
 
-    fun resetAllReadingsStatus() {
+    fun deleteInvoice(invoice: InvoiceHistory) {
         viewModelScope.launch {
-            val list = repository.allSubscribers.first()
-            list.forEach { subscriber ->
-                repository.updateSubscriber(subscriber.copy(isRead = false))
+            repository.deleteInvoice(invoice)
+            // Retrieve subscriber to reset their reading or state isRead if last invoice deleted
+            val sub = repository.getSubscriberByIdSync(invoice.subscriberId)
+            if (sub != null) {
+                // Find previous invoices for this subscriber
+                val remainingInvoices = repository.getInvoicesForSubscriberSync(invoice.subscriberId)
+                if (remainingInvoices.isEmpty()) {
+                    repository.updateSubscriber(
+                        sub.copy(
+                            currentReading = sub.initialReading,
+                            isRead = false
+                        )
+                    )
+                } else {
+                    val lastRemaining = remainingInvoices.first()
+                    repository.updateSubscriber(
+                        sub.copy(
+                            currentReading = lastRemaining.currentReading,
+                            isRead = true
+                        )
+                    )
+                }
             }
-        }
-    }
-
-    fun toggleReadStatus(subscriber: Subscriber) {
-        viewModelScope.launch {
-            repository.updateSubscriber(subscriber.copy(isRead = !subscriber.isRead))
         }
     }
 
     fun updateSettings(
         pricePerKw: Double,
-        currency: String,
+        currency: String = "ILS",
         appLockEnabled: Boolean,
         appLockType: String,
         appLockSecret: String
     ) {
         viewModelScope.launch {
-            val current = repository.getSettingsSync()
-            val updated = current.copy(
+            val s = Settings(
+                id = 1,
                 pricePerKw = pricePerKw,
                 currency = currency,
                 appLockEnabled = appLockEnabled,
                 appLockType = appLockType,
                 appLockSecret = appLockSecret
             )
-            repository.updateSettings(updated)
+            repository.updateSettings(s)
         }
     }
 
-    fun payInvoice(invoice: InvoiceHistory) {
+    fun resetDailyLectures() {
         viewModelScope.launch {
-            repository.updateInvoice(invoice.copy(isPaid = true))
-        }
-    }
-
-    fun deleteInvoice(invoice: InvoiceHistory) {
-        viewModelScope.launch {
-            // Also adjust subscriber reading back if deleting the latest reading
-            repository.deleteInvoice(invoice)
-            val sub = repository.getSubscriberByIdSync(invoice.subscriberId)
-            if (sub != null && sub.currentReading == invoice.currentReading) {
-                repository.updateSubscriber(sub.copy(currentReading = invoice.previousReading))
+            subscribers.value.forEach { sub ->
+                repository.updateSubscriber(sub.copy(isRead = false))
             }
         }
+    }
+
+    suspend fun getAverageConsumptionForSubscriber(subscriberId: Int): Double {
+        val invoices = repository.getInvoicesForSubscriberSync(subscriberId)
+        if (invoices.isEmpty()) return -1.0
+        val sum = invoices.sumOf { it.consumption }
+        return sum.toDouble() / invoices.size
     }
 }

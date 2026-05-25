@@ -10,8 +10,8 @@ data class Subscriber(
     val phoneNumber: String = "",
     val initialReading: Int = 0,
     val currentReading: Int = 0,
-    val subscriptionType: String = "Meter", // "Meter" or "Amperage"
-    val amperage: Int = 5,
+    val subscriptionType: String = "Meter",
+    val amperage: Int = 0,
     val notes: String = "",
     val isRead: Boolean = false
 )

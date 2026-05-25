@@ -8,30 +8,43 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Green80,
-    secondary = GreenGrey80,
-    tertiary = LightGreen80,
-    background = Color(0xFF101410),       // Premium dark forest background
-    surface = Color(0xFF1A1F1A),          // Elevated card/container surfaces
-    onBackground = Color(0xFFE2E3E2),     // Light text on backgrounds
-    onSurface = Color(0xFFE2E3E2),        // Light text on surfaces
-    surfaceVariant = Color(0xFF242B24),    // Context/inner surfaces
-    onSurfaceVariant = Color(0xFFC2C8C2),   // Secondary labels
-    outline = Color(0xFF3F493F)           // Input borders
+    primary = PrimaryBlue,
+    secondary = SecondaryBlue,
+    tertiary = AccentYellow,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = BackgroundDark,
+    onBackground = OnSurfaceLight,
+    onSurface = OnSurfaceLight,
+    error = ErrorRed
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Green40,
-    secondary = GreenGrey40,
-    tertiary = LightGreen40
+    primary = PrimaryBlue,
+    secondary = SecondaryBlue,
+    tertiary = AccentYellow,
+    background = Color(0xFFF1F5F9),
+    surface = Color.White,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = BackgroundDark,
+    onBackground = Color(0xFF0F172A),
+    onSurface = Color(0xFF0F172A),
+    error = ErrorRed
 )
 
 @Composable
-fun MyApplicationTheme(
-    darkTheme: Boolean = true, // Force Dark mode as requested by user
+fun AadadTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (darkTheme) {
+        DarkColorScheme
+    } else {
+        LightColorScheme
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,

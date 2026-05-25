@@ -7,18 +7,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.example.ui.AppContent
 import com.example.ui.MainViewModel
-import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.AadadTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
         enableEdgeToEdge()
-        
         setContent {
-            MyApplicationTheme {
+            AadadTheme {
                 AppContent(viewModel = viewModel)
             }
         }

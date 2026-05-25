@@ -3,16 +3,15 @@ package com.example.data.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "invoices")
+@Entity(tableName = "invoice_history")
 data class InvoiceHistory(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val subscriberId: Int,
-    val date: String,
     val previousReading: Int,
     val currentReading: Int,
     val consumption: Int,
-    val totalAmount: Double,
-    val photoProofPath: String? = null,
-    val isPaid: Boolean = false,
-    val notes: String = ""
+    val amount: Double,
+    val date: String,
+    val notes: String = "",
+    val photoProofPath: String? = null
 )

@@ -1,11 +1,6 @@
 package com.example.data.local
 
-import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Update
+import androidx.room.*
 import com.example.data.model.Subscriber
 import kotlinx.coroutines.flow.Flow
 
@@ -15,13 +10,10 @@ interface SubscriberDao {
     fun getAllSubscribers(): Flow<List<Subscriber>>
 
     @Query("SELECT * FROM subscribers WHERE id = :id")
-    fun getSubscriberById(id: Int): Flow<Subscriber?>
-
-    @Query("SELECT * FROM subscribers WHERE id = :id")
     suspend fun getSubscriberByIdSync(id: Int): Subscriber?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSubscriber(subscriber: Subscriber): Long
+    suspend fun insertSubscriber(subscriber: Subscriber)
 
     @Update
     suspend fun updateSubscriber(subscriber: Subscriber)
