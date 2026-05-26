@@ -7,6 +7,8 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -658,7 +660,7 @@ fun RecordReadingDialog(
             try {
                 val file = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
                 tempPhotoFile = file
-                val uri = FileProvider.getUriForFile(context, "com.example.aadad.fileprovider", file)
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                 cameraLauncher.launch(uri)
             } catch (e: Exception) {
                 Toast.makeText(context, "فشل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -805,7 +807,7 @@ fun RecordReadingDialog(
                             try {
                                 val file = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
                                 tempPhotoFile = file
-                                val uri = FileProvider.getUriForFile(context, "com.example.aadad.fileprovider", file)
+                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                                 cameraLauncher.launch(uri)
                             } catch (e: Exception) {
                                 Toast.makeText(context, "فشل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -821,16 +823,11 @@ fun RecordReadingDialog(
                 }
 
                 photoPath?.let { path ->
-                    val bitmap = remember(path) {
-                        try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
-                    }
-                    bitmap?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(), contentDescription = "Preview",
-                            modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+                    AsyncFileImage(
+                        filePath = path,
+                        contentDescription = "Preview",
+                        modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp))
+                    )
                 }
 
                 if (subscriber.phoneNumber.isNotEmpty()) {
@@ -873,26 +870,62 @@ fun SubscriberBillHistoryDialog(
     
     var selectedInvoiceForHistoryPhoto by remember { mutableStateOf<InvoiceHistory?>(null) }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("سجل فواتير المشترك", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.End
             ) {
+                // Title and close button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "إغلاق")
+                    }
+                    Text(
+                        text = "سجل الفواتير وقراءات: ${subscriber.name}",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.End
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 if (filtered.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        Text("لا يوجد فواتير مسجلة بعد.", color = Color.Gray, fontSize = 12.sp)
+                        Text("لا يوجد فواتير مسجلة بعد لهذا المشترك.", color = Color.Gray, fontSize = 14.sp)
                     }
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(filtered) { invoice ->
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filtered, key = { it.id }) { invoice ->
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                             ) {
-                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
+                                Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.End) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(), 
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -902,63 +935,144 @@ fun SubscriberBillHistoryDialog(
                                             verticalAlignment = Alignment.CenterVertically, 
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            Text("${invoice.amount} شيكل", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                                             
                                             // Payment status clickable badge
                                             Surface(
                                                 modifier = Modifier.clickable { viewModel.toggleInvoicePaidStatus(invoice) },
-                                                shape = RoundedCornerShape(6.dp),
+                                                shape = RoundedCornerShape(8.dp),
                                                 color = if (invoice.isPaid) Color(0xFFE6F4EA) else Color(0xFFFFF3CD),
                                                 border = BorderStroke(1.dp, if (invoice.isPaid) Color(0xFF10B981) else Color(0xFFD97706))
                                             ) {
                                                 Text(
                                                     text = if (invoice.isPaid) "تم الدفع ✓" else "اضغط لدفع 💵",
-                                                    fontSize = 9.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (invoice.isPaid) Color(0xFF137333) else Color(0xFFB06000),
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                                 )
                                             }
                                         }
-                                        Text(invoice.date, fontSize = 10.sp, color = Color.Gray)
+                                        Text(invoice.date, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("القراءات: ${invoice.previousReading} -> ${invoice.currentReading} (${invoice.consumption} Kw)", fontSize = 11.sp)
-                                    if (invoice.notes.isNotEmpty()) {
-                                        Text("ملاحظة: ${invoice.notes}", fontSize = 11.sp, color = Color.Gray)
-                                    }
-                                    invoice.photoProofPath?.let { path ->
-                                        val bitmap = remember(path) {
-                                            try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
+                                    
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    // Professional readings view
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                                            shape = RoundedCornerShape(6.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(6.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("السابقة", fontSize = 10.sp, color = Color.Gray)
+                                                Text("${invoice.previousReading}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
-                                        bitmap?.let {
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Image(
-                                                bitmap = it.asImageBitmap(), 
-                                                contentDescription = "Proof",
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(6.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(6.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("الحالية", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                                Text("${invoice.currentReading}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(6.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(6.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("الاستهلاك", fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
+                                                Text("${invoice.consumption} Kw", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (invoice.notes.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("ملاحظة: ${invoice.notes}", fontSize = 12.sp, color = Color.DarkGray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+                                    }
+                                    
+                                    invoice.photoProofPath?.let { path ->
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(130.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable { selectedInvoiceForHistoryPhoto = invoice }
+                                        ) {
+                                            AsyncFileImage(
+                                                filePath = path,
+                                                contentDescription = "صورة العداد",
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                            Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(100.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .clickable { selectedInvoiceForHistoryPhoto = invoice },
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            Text("🔍 انقر على الصورة لقراءتها بحجم كامل", fontSize = 9.sp, color = MaterialTheme.colorScheme.primary)
+                                                    .background(Color.Black.copy(alpha = 0.4f))
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(vertical = 4.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text("🔍 انقر لتكبير صورة العداد بالكامل", fontSize = 11.sp, color = Color.White)
+                                            }
                                         }
                                     }
-                                    TextButton(
-                                        onClick = { viewModel.deleteInvoice(invoice) },
-                                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                    ) { Text("حذف الفاتورة 🗑", fontSize = 10.sp) }
+                                    
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Start
+                                    ) {
+                                        TextButton(
+                                            onClick = { viewModel.deleteInvoice(invoice) },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                            contentPadding = PaddingValues(0.dp)
+                                        ) {
+                                            Text("حذف هذه الفاتورة 🗑", fontSize = 12.sp)
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("إغلاق السجل", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
             }
-        },
-        confirmButton = { Button(onClick = onDismiss) { Text("إغلاق") } }
-    )
+        }
+    }
 
     selectedInvoiceForHistoryPhoto?.let { invoice ->
         Dialog(
@@ -987,33 +1101,35 @@ fun SubscriberBillHistoryDialog(
                             Icon(Icons.Default.Close, contentDescription = "إغلاق")
                         }
                         Text(
-                            text = "عرض صورة العداد كاملة",
+                            text = "صورة العداد كاملة",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Right
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    val bitmap = remember(invoice) {
-                        try { invoice.photoProofPath?.let { path -> BitmapFactory.decodeFile(path) } } catch (e: Exception) { null }
-                    }
-                    bitmap?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = "صورة العداد تاريخية",
+                    invoice.photoProofPath?.let { path ->
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 250.dp, max = 500.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Fit
-                        )
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            AsyncFullFileImage(
+                                filePath = path,
+                                contentDescription = "قراءة العداد المكبرة",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     } ?: Text("لم يتم العثور على المسار أو فشل تحميل الصورة.", modifier = Modifier.padding(24.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { selectedInvoiceForHistoryPhoto = null },
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
                     ) {
-                        Text("إغلاق النافذة")
+                        Text("إغلاق نافذة العرض")
                     }
                 }
             }
@@ -1036,6 +1152,7 @@ fun FinancialDashboard(viewModel: MainViewModel) {
     val unreadCount = remember(subscribers) { subscribers.count { !it.isRead } }
 
     var selectedInvoiceForPhoto by remember { mutableStateOf<InvoiceHistory?>(null) }
+    val context = LocalContext.current
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -1044,6 +1161,25 @@ fun FinancialDashboard(viewModel: MainViewModel) {
     ) {
         item {
             Text("لوحة الأرقام والجباية المالية", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right)
+        }
+
+        // Prominent Excel export button
+        item {
+            Button(
+                onClick = { exportDataToExcel(context, subscribers, allInvoices) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Excel Green
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("تصدير البيانات والاحتياطي إلى ملف إكسل 📊", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Share, contentDescription = "تصدير أكسل", tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+            }
         }
 
         item {
@@ -1109,7 +1245,7 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                 }
             }
         } else {
-            items(allInvoices) { invoice ->
+            items(allInvoices, key = { it.id }) { invoice ->
                 val sub = subscribers.find { it.id == invoice.subscriberId }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -1144,20 +1280,18 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                                 )
                             }
                             
-                            // Image Preview indicator
+                            // Image Preview indicator using highly optimized async decoder
                             invoice.photoProofPath?.let { path ->
-                                val bitmap = remember(path) {
-                                    try { BitmapFactory.decodeFile(path) } catch (e: Exception) { null }
-                                }
-                                bitmap?.let {
-                                    Image(
-                                        bitmap = it.asImageBitmap(),
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { selectedInvoiceForPhoto = invoice }
+                                ) {
+                                    AsyncFileImage(
+                                        filePath = path,
                                         contentDescription = "صورة العداد",
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .clickable { selectedInvoiceForPhoto = invoice },
-                                        contentScale = ContentScale.Crop
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             }
@@ -1209,19 +1343,19 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    val bitmap = remember(invoice) {
-                        try { invoice.photoProofPath?.let { path -> BitmapFactory.decodeFile(path) } } catch (e: Exception) { null }
-                    }
-                    bitmap?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = "صورة العداد",
+                    invoice.photoProofPath?.let { path ->
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 250.dp, max = 500.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Fit
-                        )
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            AsyncFullFileImage(
+                                filePath = path,
+                                contentDescription = "صورة العداد",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     } ?: Text("لم يتم العثور على المسار أو فشل تحميل الصورة.", modifier = Modifier.padding(24.dp))
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
@@ -1292,6 +1426,53 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         }
 
+        // Dedicated Backup & Microsoft Excel export card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.2f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "نسخ احتياطي وتصدير البيانات",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF137333)
+                    )
+                    Text(
+                        text = "قم بتصدير جميع بيانات المشتركين مع قراءاتهم وفواتيرهم التاريخية وسجل الجباية والمدفوعات إلى ملف Excel (CSV) لمشاركتها وحفظها في مكان آمن للشركاء أو الأرشيف.",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Right
+                    )
+                    
+                    val subscribers by viewModel.subscribers.collectAsStateWithLifecycle(initialValue = emptyList())
+                    val allInvoices by viewModel.allInvoices.collectAsStateWithLifecycle(initialValue = emptyList())
+                    
+                    Button(
+                        onClick = { exportDataToExcel(context, subscribers, allInvoices) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), // Excel color
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("مشاركة وتصدير ملف Excel 📊", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1332,5 +1513,163 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AsyncFileImage(
+    filePath: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    var bitmapState by remember(filePath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var triedLoading by remember(filePath) { mutableStateOf(false) }
+
+    LaunchedEffect(filePath) {
+        triedLoading = false
+        withContext(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (file.exists()) {
+                    val options = BitmapFactory.Options().apply {
+                        inSampleSize = 2
+                    }
+                    val decoded = BitmapFactory.decodeFile(filePath, options)
+                    bitmapState = decoded
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                triedLoading = true
+            }
+        }
+    }
+
+    val bmp = bitmapState
+    if (bmp != null) {
+        Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!triedLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 1.5.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "No photo",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AsyncFullFileImage(
+    filePath: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    var bitmapState by remember(filePath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var triedLoading by remember(filePath) { mutableStateOf(false) }
+
+    LaunchedEffect(filePath) {
+        triedLoading = false
+        withContext(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (file.exists()) {
+                    val decoded = BitmapFactory.decodeFile(filePath)
+                    bitmapState = decoded
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                triedLoading = true
+            }
+        }
+    }
+
+    val bmp = bitmapState
+    if (bmp != null) {
+        Image(
+            bitmap = bmp.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.fillMaxWidth().height(300.dp).background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!triedLoading) {
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text("فشل تحميل الصورة.")
+            }
+        }
+    }
+}
+
+fun exportDataToExcel(context: Context, subscribers: List<Subscriber>, invoices: List<InvoiceHistory>) {
+    try {
+        val csvHeader = "\uFEFF" + "اسم المشترك,رقم الهاتف,حالة القراءة,آخر قراءة للعداد,تاريخ آخر قراءة,مجموع الاستهلاك (Kw),الفواتير المدفوعة (شيكل),الفواتير المعلقة (شيكل),سجل القراءات التاريخية بالفواصل\n"
+        val csvBody = StringBuilder()
+        csvBody.append(csvHeader)
+        
+        subscribers.forEach { sub ->
+            val subInvoices = invoices.filter { it.subscriberId == sub.id }
+            val totalKw = subInvoices.sumOf { it.consumption }
+            val paidAmount = subInvoices.filter { it.isPaid }.sumOf { it.amount }
+            val pendingAmount = subInvoices.filter { !it.isPaid }.sumOf { it.amount }
+            
+            val status = if (sub.isRead) "تمت القراءة" else "بانتظار القراءة"
+            
+            val historyDetails = subInvoices.joinToString(" | ") { inv ->
+                "${inv.previousReading}->${inv.currentReading} (${inv.consumption}Kw : ${inv.amount}شيكل : ${if (inv.isPaid) "مدفوع" else "غير مدفوع"} : ${inv.date})"
+            }
+            
+            val nameSafe = sub.name.replace(",", "-")
+            val phoneSafe = sub.phoneNumber.replace(",", "-")
+            val historySafe = historyDetails.replace(",", " ")
+            
+            val latestInvoice = subInvoices.maxByOrNull { it.id }
+            val latestReading = latestInvoice?.currentReading ?: sub.currentReading
+            val latestReadingDate = latestInvoice?.date ?: "تأسيس المشترك"
+            
+            csvBody.append("$nameSafe,$phoneSafe,$status,$latestReading,$latestReadingDate,$totalKw,$paidAmount,$pendingAmount,$historySafe\n")
+        }
+        
+        val file = File(context.cacheDir, "SmartCollector_Export_${System.currentTimeMillis()}.csv")
+        file.writeText(csvBody.toString(), Charsets.UTF_8)
+        
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, "تصدير واحتياط لبيانات المشتركين والفواتير")
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(android.content.Intent.createChooser(intent, "حفظ وتصدير ملف Excel (CSV)"))
+    } catch (e: Exception) {
+        Toast.makeText(context, "فشل تصدير البيانات إلى تنسيق إكسل: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }

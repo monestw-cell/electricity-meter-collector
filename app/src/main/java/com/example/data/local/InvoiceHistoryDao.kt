@@ -18,6 +18,9 @@ interface InvoiceHistoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInvoice(invoice: InvoiceHistory)
 
+    @Query("DELETE FROM invoice_history WHERE subscriberId = :subscriberId")
+    suspend fun deleteInvoicesForSubscriber(subscriberId: Int)
+
     @Delete
     suspend fun deleteInvoice(invoice: InvoiceHistory)
 }

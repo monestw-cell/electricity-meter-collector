@@ -30,6 +30,7 @@ class ReadingRepository(
     }
 
     suspend fun deleteSubscriber(subscriber: Subscriber) {
+        invoiceHistoryDao.deleteInvoicesForSubscriber(subscriber.id)
         subscriberDao.deleteSubscriber(subscriber)
     }
 
