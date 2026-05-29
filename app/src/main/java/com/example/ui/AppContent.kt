@@ -444,7 +444,11 @@ fun SubscriberItemCard(
                 Text(
                     text = subscriber.name,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
@@ -517,15 +521,35 @@ fun AddSubscriberDialog(
     var initialReading by remember { mutableStateOf("0") }
     var notes by remember { mutableStateOf("") }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("إضافة مشترك جديد", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.End
             ) {
+                Text(
+                    text = "إضافة مشترك جديد",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -560,17 +584,21 @@ fun AddSubscriberDialog(
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
+                ) {
+                    TextButton(onClick = onDismiss) { Text("إلغاء") }
+                    Button(
+                        onClick = { if (name.trim().isNotEmpty()) onAdd(name, phone, initialReading.toIntOrNull() ?: 0, notes) }
+                    ) { Text("حفظ") }
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (name.trim().isNotEmpty()) onAdd(name, phone, initialReading.toIntOrNull() ?: 0, notes) }
-            ) { Text("حفظ") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء") }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -586,40 +614,64 @@ fun EditSubscriberDialog(
     var currentReading by remember { mutableStateOf(subscriber.currentReading.toString()) }
     var notes by remember { mutableStateOf(subscriber.notes) }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("تعديل بيانات المشترك", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.End
             ) {
+                Text(
+                    text = "تعديل بيانات المشترك",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Right
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("الاسم") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("الهاتف") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = initialReading, onValueChange = { initialReading = it }, label = { Text("القراءة الابتدائية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("القراءة الحالية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("ملاحظات/العنوان") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.trim().isNotEmpty()) {
-                        onSave(subscriber.copy(
-                            name = name, phoneNumber = phone,
-                            initialReading = initialReading.toIntOrNull() ?: subscriber.initialReading,
-                            currentReading = currentReading.toIntOrNull() ?: subscriber.currentReading,
-                            notes = notes
-                        ))
-                    }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
+                ) {
+                    TextButton(onClick = onDismiss) { Text("إلغاء") }
+                    Button(
+                        onClick = {
+                            if (name.trim().isNotEmpty()) {
+                                onSave(subscriber.copy(
+                                    name = name, phoneNumber = phone,
+                                    initialReading = initialReading.toIntOrNull() ?: subscriber.initialReading,
+                                    currentReading = currentReading.toIntOrNull() ?: subscriber.currentReading,
+                                    notes = notes
+                                ))
+                            }
+                        }
+                    ) { Text("حفظ التغييرات") }
                 }
-            ) { Text("حفظ التغييرات") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء") }
+            }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -731,129 +783,161 @@ fun RecordReadingDialog(
         onSave(finalReading, notesInput, persistentPhotoPath)
     }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("تسجيل قراءة للعداد", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Right) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.9f)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalAlignment = Alignment.End
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
             ) {
-                Text("المشترك: ${subscriber.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("آخر قراءة للعداد: ${subscriber.currentReading} Kw", fontSize = 12.sp, color = Color.Gray)
-                
-                if (historicalAverage > 0) {
-                    Text("معدل الاستهلاك المعتاد للزبون: %.1f Kw".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
-                }
-
-                if (showWarningPrompt) {
-                    Card(
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "تسجيل قراءة للعداد",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                        textAlign = TextAlign.Right
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text("المشترك: ${subscriber.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    Text("آخر قراءة للعداد: ${subscriber.currentReading} Kw", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    
+                    if (historicalAverage > 0) {
+                        Text("معدل الاستهلاك المعتاد للزبون: %.1f Kw".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    }
+
+                    if (showWarningPrompt) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
+                                Text("تنبيه: الاستهلاك مرتفع جداً!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val inputVal = readingInput.toIntOrNull() ?: subscriber.currentReading
+                                Text("الاستهلاك الحالي (${inputVal - subscriber.currentReading} Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = readingInput,
+                        onValueChange = { readingInput = it; showWarningPrompt = false },
+                        label = { Text("القراءة الحالية الجديدة (Kw)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth().testTag("reading_field_input"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = appTextFieldColors()
+                    )
+
+                    Text("ملاحظات ميدانية سريعة:", fontSize = 10.sp, color = Color.Gray, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
                     ) {
-                        Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
-                            Text("تنبيه: الاستهلاك مرتفع جداً!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            val inputVal = readingInput.toIntOrNull() ?: subscriber.currentReading
-                            Text("الاستهلاك الحالي (${inputVal - subscriber.currentReading} Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
+                        listOf("العداد معطل", "استهلاك مرتفع", "مغلق").forEach { tag ->
+                            Card(
+                                modifier = Modifier.clickable { notesInput = tag },
+                                shape = RoundedCornerShape(4.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Text(tag, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = notesInput,
+                        onValueChange = { notesInput = it },
+                        label = { Text("ملاحظات الفاتورة") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = appTextFieldColors()
+                    )
+
+                    Button(
+                        onClick = {
+                            val hasCameraPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.CAMERA
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                            if (hasCameraPermission) {
+                                try {
+                                    val file = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
+                                    tempPhotoFile = file
+                                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                    cameraLauncher.launch(uri)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "فشل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (photoPath == null) "التقاط صورة للعداد 📸" else "تم التقاط صورة العداد ✓", fontSize = 12.sp)
+                    }
+
+                    photoPath?.let { path ->
+                        AsyncFileImage(
+                            filePath = path,
+                            contentDescription = "Preview",
+                            modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp))
+                        )
+                    }
+
+                    if (subscriber.phoneNumber.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable { sendSmsChecked = !sendSmsChecked },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Text("إرسال فاتورة SMS للمشترك", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Checkbox(checked = sendSmsChecked, onCheckedChange = { sendSmsChecked = it })
                         }
                     }
                 }
 
-                OutlinedTextField(
-                    value = readingInput,
-                    onValueChange = { readingInput = it; showWarningPrompt = false },
-                    label = { Text("القراءة الحالية الجديدة (Kw)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth().testTag("reading_field_input"),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Text("ملاحظات ميدانية سريعة:", fontSize = 10.sp, color = Color.Gray)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
                 ) {
-                    listOf("العداد معطل", "استهلاك مرتفع", "مغلق").forEach { tag ->
-                        Card(
-                            modifier = Modifier.clickable { notesInput = tag },
-                            shape = RoundedCornerShape(4.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                        ) {
-                            Text(tag, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
-                        }
+                    TextButton(onClick = { if (showWarningPrompt) showWarningPrompt = false else onDismiss() }) {
+                        Text(if (showWarningPrompt) "تعديل القراءة" else "إلغاء")
+                    }
+                    Button(onClick = { handleSave() }, modifier = Modifier.testTag("btn_confirm_save_reading")) {
+                        Text(if (showWarningPrompt) "تأكيد واستمرار بالحفظ" else "حفظ")
                     }
                 }
-
-                OutlinedTextField(
-                    value = notesInput,
-                    onValueChange = { notesInput = it },
-                    label = { Text("ملاحظات الفاتورة") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = appTextFieldColors()
-                )
-
-                Button(
-                    onClick = {
-                        val hasCameraPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-                            context,
-                            android.Manifest.permission.CAMERA
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-                        if (hasCameraPermission) {
-                            try {
-                                val file = File(context.cacheDir, "temp_photo_${System.currentTimeMillis()}.jpg")
-                                tempPhotoFile = file
-                                val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                                cameraLauncher.launch(uri)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "فشل الكاميرا: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            permissionLauncher.launch(android.Manifest.permission.CAMERA)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (photoPath == null) "التقاط صورة للعداد 📸" else "تم التقاط صورة العداد ✓", fontSize = 12.sp)
-                }
-
-                photoPath?.let { path ->
-                    AsyncFileImage(
-                        filePath = path,
-                        contentDescription = "Preview",
-                        modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp))
-                    )
-                }
-
-                if (subscriber.phoneNumber.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { sendSmsChecked = !sendSmsChecked },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Text("إرسال فاتورة SMS للمشترك", fontSize = 12.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Checkbox(checked = sendSmsChecked, onCheckedChange = { sendSmsChecked = it })
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { handleSave() }, modifier = Modifier.testTag("btn_confirm_save_reading")) {
-                Text(if (showWarningPrompt) "تأكيد واستمرار بالحفظ" else "حفظ")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { if (showWarningPrompt) showWarningPrompt = false else onDismiss() }) {
-                Text(if (showWarningPrompt) "تعديل القراءة" else "إلغاء")
             }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
