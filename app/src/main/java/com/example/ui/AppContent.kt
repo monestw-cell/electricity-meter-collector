@@ -1010,6 +1010,40 @@ fun SubscriberBillHistoryDialog(
                         textAlign = TextAlign.End
                     )
                 }
+
+                val totalPendingAmount = remember(filtered) {
+                    filtered.filter { !it.isPaid }.sumOf { it.amount }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = if (totalPendingAmount > 0) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Text(
+                            text = if (totalPendingAmount > 0) "المتبقي للدفع: ${totalPendingAmount.formatAmount()} شيكل" else "خالي من الديون ✓",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (totalPendingAmount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                    
+                    val totalKw = remember(filtered) { filtered.sumOf { it.consumption } }
+                    Text(
+                        text = "إجمالي الاستهلاك: ${totalKw.formatAmount()} Kw",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 
@@ -1116,6 +1150,22 @@ fun SubscriberBillHistoryDialog(
                                             ) {
                                                 Text("الاستهلاك", fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
                                                 Text("${invoice.consumption.formatAmount()} Kw", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                                            }
+                                        }
+                                        
+                                        val calculatedRate = if (invoice.consumption > 0.0) invoice.amount / invoice.consumption else 0.0
+                                        Surface(
+                                            modifier = Modifier.weight(1f),
+                                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(6.dp),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f))
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(6.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text("سعر الكيلو", fontSize = 10.sp, color = MaterialTheme.colorScheme.tertiary)
+                                                Text("${calculatedRate.formatAmount()} ش.ك", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
                                             }
                                         }
                                     }
@@ -1413,7 +1463,8 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                         // Right hand side elements: Customer Name and Consumption
                         Column(horizontalAlignment = Alignment.End) {
                             Text(sub?.name ?: "مشترك محذوف", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            Text("الاستهلاك: ${invoice.consumption.formatAmount()} Kw | من ${invoice.previousReading.formatAmount()} إلى ${invoice.currentReading.formatAmount()}", fontSize = 11.sp, color = Color.Gray)
+                            val rate = if (invoice.consumption > 0.0) invoice.amount / invoice.consumption else 0.0
+                            Text("الاستهلاك: ${invoice.consumption.formatAmount()} Kw | سعر الكيلو: ${rate.formatAmount()} ش.ك | من ${invoice.previousReading.formatAmount()} إلى ${invoice.currentReading.formatAmount()}", fontSize = 11.sp, color = Color.Gray)
                             Text(invoice.date, fontSize = 9.sp, color = Color.Gray)
                         }
                     }
