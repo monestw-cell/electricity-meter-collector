@@ -7,9 +7,9 @@ import androidx.room.PrimaryKey
 data class InvoiceHistory(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val subscriberId: Int,
-    val previousReading: Int,
-    val currentReading: Int,
-    val consumption: Int,
+    val previousReading: Double,
+    val currentReading: Double,
+    val consumption: Double,
     val amount: Double,
     val date: String,
     val notes: String = "",

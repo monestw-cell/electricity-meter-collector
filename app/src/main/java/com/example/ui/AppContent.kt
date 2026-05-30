@@ -514,7 +514,7 @@ fun SubscriberItemCard(
 @Composable
 fun AddSubscriberDialog(
     onDismiss: () -> Unit,
-    onAdd: (String, String, Int, String) -> Unit
+    onAdd: (String, String, Double, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -571,7 +571,7 @@ fun AddSubscriberDialog(
                     value = initialReading,
                     onValueChange = { initialReading = it },
                     label = { Text("القراءة الابتدائية (Kw)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = appTextFieldColors()
@@ -593,7 +593,7 @@ fun AddSubscriberDialog(
                 ) {
                     TextButton(onClick = onDismiss) { Text("إلغاء") }
                     Button(
-                        onClick = { if (name.trim().isNotEmpty()) onAdd(name, phone, initialReading.toIntOrNull() ?: 0, notes) }
+                        onClick = { if (name.trim().isNotEmpty()) onAdd(name, phone, initialReading.toDoubleOrNull() ?: 0.0, notes) }
                     ) { Text("حفظ") }
                 }
             }
@@ -645,8 +645,8 @@ fun EditSubscriberDialog(
 
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("الاسم") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("الهاتف") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
-                OutlinedTextField(value = initialReading, onValueChange = { initialReading = it }, label = { Text("القراءة الابتدائية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
-                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("القراءة الحالية (Kw)") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = initialReading, onValueChange = { initialReading = it }, label = { Text("القراءة الابتدائية (Kw)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
+                OutlinedTextField(value = currentReading, onValueChange = { currentReading = it }, label = { Text("القراءة الحالية (Kw)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("ملاحظات/العنوان") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = appTextFieldColors())
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -661,8 +661,8 @@ fun EditSubscriberDialog(
                             if (name.trim().isNotEmpty()) {
                                 onSave(subscriber.copy(
                                     name = name, phoneNumber = phone,
-                                    initialReading = initialReading.toIntOrNull() ?: subscriber.initialReading,
-                                    currentReading = currentReading.toIntOrNull() ?: subscriber.currentReading,
+                                    initialReading = initialReading.toDoubleOrNull() ?: subscriber.initialReading,
+                                    currentReading = currentReading.toDoubleOrNull() ?: subscriber.currentReading,
                                     notes = notes
                                 ))
                             }
@@ -680,7 +680,7 @@ fun RecordReadingDialog(
     subscriber: Subscriber,
     viewModel: MainViewModel,
     onDismiss: () -> Unit,
-    onSave: (Int, String, String?) -> Unit
+    onSave: (Double, String, String?) -> Unit
 ) {
     var readingInput by remember { mutableStateOf("") }
     var notesInput by remember { mutableStateOf("") }
@@ -725,13 +725,19 @@ fun RecordReadingDialog(
     var showWarningPrompt by remember { mutableStateOf(false) }
 
     fun handleSave() {
-        val finalReading = readingInput.toIntOrNull() ?: subscriber.currentReading
+        val finalReading = readingInput.toDoubleOrNull() ?: subscriber.currentReading
         val previousReading = subscriber.currentReading
-        val consumption = (finalReading - previousReading).coerceAtLeast(0)
+        val consumption = (finalReading - previousReading).coerceAtLeast(0.0)
         val totalAmount = consumption * settingsState.pricePerKw
 
         if (finalReading < previousReading) {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
             vibrator?.let {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     it.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -834,8 +840,8 @@ fun RecordReadingDialog(
                             Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.End) {
                                 Text("تنبيه: الاستهلاك مرتفع جداً!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                val inputVal = readingInput.toIntOrNull() ?: subscriber.currentReading
-                                Text("الاستهلاك الحالي (${inputVal - subscriber.currentReading} Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
+                                val inputVal = readingInput.toDoubleOrNull() ?: subscriber.currentReading
+                                Text("الاستهلاك الحالي (%.1f Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(inputVal - subscriber.currentReading, historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
                             }
                         }
                     }
@@ -844,7 +850,7 @@ fun RecordReadingDialog(
                         value = readingInput,
                         onValueChange = { readingInput = it; showWarningPrompt = false },
                         label = { Text("القراءة الحالية الجديدة (Kw)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth().testTag("reading_field_input"),
                         shape = RoundedCornerShape(10.dp),
                         colors = appTextFieldColors()

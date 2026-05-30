@@ -49,7 +49,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addSubscriber(name: String, phoneNumber: String, initialReading: Int, notes: String) {
+    fun addSubscriber(name: String, phoneNumber: String, initialReading: Double, notes: String) {
         viewModelScope.launch {
             val subscriber = Subscriber(
                 name = name,
@@ -79,14 +79,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun recordReading(
         subscriber: Subscriber,
-        newReading: Int,
+        newReading: Double,
         notes: String,
         photoProofPath: String?,
         onComplete: (InvoiceHistory) -> Unit
     ) {
         viewModelScope.launch {
             val previousReading = subscriber.currentReading
-            val consumption = (newReading - previousReading).coerceAtLeast(0)
+            val consumption = (newReading - previousReading).coerceAtLeast(0.0)
             val currentSettings = repository.getSettingsSync()
             val rate = currentSettings.pricePerKw
             val amount = consumption * rate

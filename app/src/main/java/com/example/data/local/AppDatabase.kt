@@ -8,7 +8,7 @@ import com.example.data.model.InvoiceHistory
 import com.example.data.model.Settings
 import com.example.data.model.Subscriber
 
-@Database(entities = [Subscriber::class, InvoiceHistory::class, Settings::class], version = 3, exportSchema = false)
+@Database(entities = [Subscriber::class, InvoiceHistory::class, Settings::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subscriberDao(): SubscriberDao
     abstract fun invoiceHistoryDao(): InvoiceHistoryDao
