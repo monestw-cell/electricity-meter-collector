@@ -48,6 +48,21 @@ import com.example.data.model.Settings
 import com.example.data.model.Subscriber
 import java.io.File
 
+fun Double.formatAmount(): String {
+    return if (this % 1.0 == 0.0) {
+        String.format(java.util.Locale.US, "%.0f", this)
+    } else {
+        val formatted = String.format(java.util.Locale.US, "%.2f", this)
+        if (formatted.endsWith(".00")) {
+            formatted.substring(0, formatted.length - 3)
+        } else if (formatted.endsWith("0")) {
+            formatted.substring(0, formatted.length - 1)
+        } else {
+            formatted
+        }
+    }
+}
+
 @Composable
 fun appTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -482,13 +497,13 @@ fun SubscriberItemCard(
                 ) {
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "الحالية: ${subscriber.currentReading} Kw",
+                            text = "الحالية: ${subscriber.currentReading.formatAmount()} Kw",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "البدء: ${subscriber.initialReading} Kw",
+                            text = "البدء: ${subscriber.initialReading.formatAmount()} Kw",
                             fontSize = 10.sp,
                             color = Color.Gray
                         )
@@ -610,8 +625,8 @@ fun EditSubscriberDialog(
 ) {
     var name by remember { mutableStateOf(subscriber.name) }
     var phone by remember { mutableStateOf(subscriber.phoneNumber) }
-    var initialReading by remember { mutableStateOf(subscriber.initialReading.toString()) }
-    var currentReading by remember { mutableStateOf(subscriber.currentReading.toString()) }
+    var initialReading by remember { mutableStateOf(subscriber.initialReading.formatAmount()) }
+    var currentReading by remember { mutableStateOf(subscriber.currentReading.formatAmount()) }
     var notes by remember { mutableStateOf(subscriber.notes) }
 
     Dialog(
@@ -746,7 +761,7 @@ fun RecordReadingDialog(
                     it.vibrate(300)
                 }
             }
-            Toast.makeText(context, "خطأ: القراءة الحالية أقل من القراءة السابقة (${previousReading} Kw)!", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "خطأ: القراءة الحالية أقل من القراءة السابقة (${previousReading.formatAmount()} Kw)!", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -770,10 +785,10 @@ fun RecordReadingDialog(
             val smsBody = """
             مشتركنا العزيز: ${subscriber.name}
             فاتورة الكهرباء:
-            - القراءة السابقة: $previousReading Kw
-            - القراءة الحالية: $finalReading Kw
-            - استهلاكك: $consumption Kw
-            - القيمة المطلوبة: $totalAmount شيكل
+            - القراءة السابقة: ${previousReading.formatAmount()} Kw
+            - القراءة الحالية: ${finalReading.formatAmount()} Kw
+            - استهلاكك: ${consumption.formatAmount()} Kw
+            - القيمة المطلوبة: ${totalAmount.formatAmount()} شيكل
             """.trimIndent()
             try {
                 val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
@@ -826,10 +841,10 @@ fun RecordReadingDialog(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text("المشترك: ${subscriber.name}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
-                    Text("آخر قراءة للعداد: ${subscriber.currentReading} Kw", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    Text("آخر قراءة للعداد: ${subscriber.currentReading.formatAmount()} Kw", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
                     
                     if (historicalAverage > 0) {
-                        Text("معدل الاستهلاك المعتاد للزبون: %.1f Kw".format(historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                        Text("معدل الاستهلاك المعتاد للزبون: ${historicalAverage.formatAmount()} Kw", fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Right, modifier = Modifier.fillMaxWidth())
                     }
 
                     if (showWarningPrompt) {
@@ -841,7 +856,7 @@ fun RecordReadingDialog(
                                 Text("تنبيه: الاستهلاك مرتفع جداً!", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 val inputVal = readingInput.toDoubleOrNull() ?: subscriber.currentReading
-                                Text("الاستهلاك الحالي (%.1f Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (%.1f Kw)! هل أنت متأكد من صحة القراءة؟".format(inputVal - subscriber.currentReading, historicalAverage), fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
+                                Text("الاستهلاك الحالي (${(inputVal - subscriber.currentReading).formatAmount()} Kw) أعلى بـ 5 أضعاف من المعدل المعتاد (${historicalAverage.formatAmount()} Kw)! هل أنت متأكد من صحة القراءة؟", fontSize = 11.sp, color = MaterialTheme.colorScheme.onErrorContainer, textAlign = TextAlign.Right)
                             }
                         }
                     }
@@ -1023,9 +1038,10 @@ fun SubscriberBillHistoryDialog(
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically, 
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.weight(1f, fill = false)
                                         ) {
-                                            Text("${invoice.amount} شيكل", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                                            Text("${invoice.amount.formatAmount()} شيكل", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
                                             
                                             // Payment status clickable badge
                                             Surface(
@@ -1043,7 +1059,14 @@ fun SubscriberBillHistoryDialog(
                                                 )
                                             }
                                         }
-                                        Text(invoice.date, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                                        Text(
+                                            text = invoice.date, 
+                                            fontSize = 11.sp, 
+                                            color = Color.Gray, 
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        )
                                     }
                                     
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -1064,7 +1087,7 @@ fun SubscriberBillHistoryDialog(
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
                                                 Text("السابقة", fontSize = 10.sp, color = Color.Gray)
-                                                Text("${invoice.previousReading}", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                Text(invoice.previousReading.formatAmount(), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                         Surface(
@@ -1078,7 +1101,7 @@ fun SubscriberBillHistoryDialog(
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
                                                 Text("الحالية", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                                                Text("${invoice.currentReading}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                Text(invoice.currentReading.formatAmount(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                             }
                                         }
                                         Surface(
@@ -1092,7 +1115,7 @@ fun SubscriberBillHistoryDialog(
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
                                                 Text("الاستهلاك", fontSize = 10.sp, color = MaterialTheme.colorScheme.secondary)
-                                                Text("${invoice.consumption} Kw", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                                                Text("${invoice.consumption.formatAmount()} Kw", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
                                             }
                                         }
                                     }
@@ -1277,13 +1300,13 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                     Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("مجموع الجباية (المدفوعة)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text("%.1f شيكل".format(totalCashCollected), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("${totalCashCollected.formatAmount()} شيكل", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("مجموع الاستهلاك", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text("$totalConsumption Kw", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("${totalConsumption.formatAmount()} Kw", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1301,7 +1324,7 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("%.1f شيكل".format(totalCashPending), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                    Text("${totalCashPending.formatAmount()} شيكل", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                     Text("المبالغ المتبقية بانتظار الدفع:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
@@ -1352,7 +1375,7 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                             verticalAlignment = Alignment.CenterVertically, 
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("${invoice.amount} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("${invoice.amount.formatAmount()} شيكل", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             
                             // Interactive Payment Toggle status
                             Surface(
@@ -1390,7 +1413,7 @@ fun FinancialDashboard(viewModel: MainViewModel) {
                         // Right hand side elements: Customer Name and Consumption
                         Column(horizontalAlignment = Alignment.End) {
                             Text(sub?.name ?: "مشترك محذوف", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            Text("الاستهلاك: ${invoice.consumption} Kw | من ${invoice.previousReading} إلى ${invoice.currentReading}", fontSize = 11.sp, color = Color.Gray)
+                            Text("الاستهلاك: ${invoice.consumption.formatAmount()} Kw | من ${invoice.previousReading.formatAmount()} إلى ${invoice.currentReading.formatAmount()}", fontSize = 11.sp, color = Color.Gray)
                             Text(invoice.date, fontSize = 9.sp, color = Color.Gray)
                         }
                     }
@@ -1733,7 +1756,7 @@ fun exportDataToExcel(context: Context, subscribers: List<Subscriber>, invoices:
             val status = if (sub.isRead) "تمت القراءة" else "بانتظار القراءة"
             
             val historyDetails = subInvoices.joinToString(" | ") { inv ->
-                "${inv.previousReading}->${inv.currentReading} (${inv.consumption}Kw : ${inv.amount}شيكل : ${if (inv.isPaid) "مدفوع" else "غير مدفوع"} : ${inv.date})"
+                "${inv.previousReading.formatAmount()}->${inv.currentReading.formatAmount()} (${inv.consumption.formatAmount()}Kw : ${inv.amount.formatAmount()}شيكل : ${if (inv.isPaid) "مدفوع" else "غير مدفوع"} : ${inv.date})"
             }
             
             val nameSafe = sub.name.replace(",", "-")
@@ -1744,7 +1767,7 @@ fun exportDataToExcel(context: Context, subscribers: List<Subscriber>, invoices:
             val latestReading = latestInvoice?.currentReading ?: sub.currentReading
             val latestReadingDate = latestInvoice?.date ?: "تأسيس المشترك"
             
-            csvBody.append("$nameSafe,$phoneSafe,$status,$latestReading,$latestReadingDate,$totalKw,$paidAmount,$pendingAmount,$historySafe\n")
+            csvBody.append("$nameSafe,$phoneSafe,$status,${latestReading.formatAmount()},$latestReadingDate,${totalKw.formatAmount()},${paidAmount.formatAmount()},${pendingAmount.formatAmount()},$historySafe\n")
         }
         
         val file = File(context.cacheDir, "SmartCollector_Export_${System.currentTimeMillis()}.csv")
