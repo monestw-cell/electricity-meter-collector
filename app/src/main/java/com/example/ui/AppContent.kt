@@ -1661,7 +1661,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "هذا التطبيق خاص لمهند الطويل",
+                        text = "تطبيق محصل عدادات الكهرباء الذكية",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground,
