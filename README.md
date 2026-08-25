@@ -1,3 +1,11 @@
+
+<div align="center">
+
+[![Download APK](https://img.shields.io/badge/📥_Download_Release-APK_v1.0.0-success?style=for-the-badge&logo=android&logoColor=white)](https://github.com/monestw-cell/electricity-meter-collector/releases/latest)
+[![GitHub release](https://img.shields.io/github/v/release/monestw-cell/electricity-meter-collector?style=for-the-badge&color=blue)](https://github.com/monestw-cell/electricity-meter-collector/releases/latest)
+
+</div>
+
 # Electricity Meter Collector (Android) ⚡📱
 
 [![Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://android.com)
